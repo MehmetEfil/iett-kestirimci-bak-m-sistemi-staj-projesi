@@ -1,0 +1,18 @@
+# Web panel
+Flask>=3.0
+Flask-SQLAlchemy>=3.1
+pyodbc>=5.0
+requests>=2.31
+python-dotenv>=1.0
+
+# Veri analizi & ML (notebook'lar)
+pandas>=2.0
+numpy>=1.26
+scikit-learn>=1.4
+scipy>=1.11
+statsmodels>=0.14
+xgboost>=2.0
+lightgbm>=4.0
+shap>=0.44
+optuna>=3.5
+matplotlib>=3.8

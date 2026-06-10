@@ -1,0 +1,34 @@
+# === Kimlik bilgileri / secrets ===
+.env
+*.env
+!.env.example
+
+# === Veri / DB / cache (repoya GİRMEZ) ===
+*.db
+*.sqlite
+*.pkl
+*.csv
+*.tsv
+panel_data/
+cache/
+**/DATA/
+_yedek*/
+_arsiv*/
+*.pptx
+
+# === Notebook checkpoints ===
+.ipynb_checkpoints/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.conda/
+venv/
+.venv/
+env/
+
+# === IDE / OS ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

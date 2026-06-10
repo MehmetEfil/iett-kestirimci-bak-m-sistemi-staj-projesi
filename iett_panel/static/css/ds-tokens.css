@@ -1,0 +1,283 @@
+/* ─────────────────────────────────────────────────────────────────────────
+ * UKOME · İETT Design System — Colors & Type
+ * Single source of truth for foundations. Import in any preview/UI-kit file.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+@font-face {
+  font-family: 'NT Josefine';
+  src: url('../fonts/NT_Josefine__only_personal_use_.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ───── Surfaces ───── */
+  --bg-deep:       #010b1a;   /* landing canvas bg */
+  --bg-page:       #0b0f19;   /* default page bg                              (--dark in source) */
+  --bg-panel:      #0f172a;   /* sticky headers, inset panels                              */
+  --bg-card:       #1e293b;   /* raised card body                              (--card in source) */
+  --bg-card-hi:    #161b2a;   /* alternate card body for nested/stop cards     */
+  --bg-overlay:    rgba(15, 23, 42, 0.96);  /* floating panels                */
+  --bg-overlay-2:  rgba(15, 23, 42, 0.85);  /* lighter floating chrome        */
+  --bg-modal:      rgba(0, 0, 0, 0.7);
+
+  /* ───── Borders ───── */
+  --border:        #334155;          /* default border, divider                (--border in source) */
+  --border-soft:   rgba(255, 255, 255, 0.07);
+  --border-faint:  rgba(255, 255, 255, 0.05);
+
+  /* ───── Foreground / text ───── */
+  --fg-1:          #f1f5f9;          /* heading                              */
+  --fg-2:          #e0e6ed;          /* body default                         */
+  --fg-3:          #cbd5e1;          /* table cell, secondary                */
+  --fg-muted:      #94a3b8;          /* labels, sublabels                    */
+  --fg-dim:        #64748b;          /* hints                                */
+  --fg-ghost:      #475569;          /* near-disabled                        */
+  --fg-fade:       #334155;          /* placeholder-ish                      */
+
+  /* ───── Mode accents ───── */
+  --mode-2025:        #0ea5e9;        /* sky-500 — 2025 historical             (--primary in source) */
+  --mode-2025-hover:  #0284c7;
+  --mode-2025-text:   #38bdf8;
+  --mode-2025-tint:   rgba(14, 165, 233, 0.10);
+  --mode-2025-border: rgba(14, 165, 233, 0.35);
+
+  --mode-2026:        #ef4444;        /* red-500 — 2026 live + danger          (--danger in source) */
+  --mode-2026-hover:  #dc2626;
+  --mode-2026-text:   #fca5a5;
+  --mode-2026-tint:   rgba(239, 68, 68, 0.10);
+  --mode-2026-border: rgba(239, 68, 68, 0.35);
+
+  /* ───── Tier ramp (the dominant data encoding) ───── */
+  --tier-kritik:        #ef4444;      /* red    — KRİTİK */
+  --tier-kritik-tint:   rgba(239, 68, 68, 0.15);
+  --tier-yuksek:        #f97316;      /* orange — YÜKSEK */
+  --tier-yuksek-amber:  #f59e0b;      /* amber alternate, used in chart fills */
+  --tier-yuksek-tint:   rgba(245, 158, 11, 0.15);
+  --tier-orta:          #f59e0b;      /* amber  — ORTA   */
+  --tier-orta-indigo:   #6366f1;      /* indigo alternate */
+  --tier-orta-tint:     rgba(99, 102, 241, 0.15);
+  --tier-dusuk:         #22c55e;      /* green  — DÜŞÜK */
+  --tier-dusuk-tint:    rgba(34, 197, 94, 0.15);
+
+  /* ───── Semantic ───── */
+  --c-success: #22c55e;
+  --c-warning: #f59e0b;
+  --c-danger:  #ef4444;
+  --c-info:    #0ea5e9;
+  --c-personel:#8b5cf6;          /* personnel / audit panel */
+  --c-warm:    #fb923c;          /* warm warning sub-tone */
+  --c-gold:    #FFD700;          /* focus / search highlight */
+
+  /* ───── Type ───── */
+  --font-sans:    'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-display: 'NT Josefine', 'Didot', 'Bodoni 72', Georgia, serif;  /* brand display — covers, hero titles, ceremonial labels only */
+
+  --fs-9:   9px;
+  --fs-10: 10px;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-18: 18px;
+  --fs-20: 20px;
+  --fs-22: 22px;
+  --fs-24: 24px;
+  --fs-26: 26px;
+  --fs-32: 32px;
+  --fs-100: 100px;
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-bold:    700;
+  --fw-heavy:   800;
+  --fw-black:   900;
+
+  --tracking-wide:  0.05em;   /* default uppercase tracking */
+  --tracking-wider: 0.07em;
+  --tracking-loose: 0.1em;
+  --tracking-tight: -0.5px;
+
+  /* ───── Radii ───── */
+  --r-input:  4px;
+  --r-btn:    6px;
+  --r-pill:   20px;
+  --r-card:   12px;
+  --r-card-s: 8px;
+  --r-card-l: 16px;
+
+  /* ───── Spacing scale ───── */
+  --sp-1:  2px;
+  --sp-2:  4px;
+  --sp-3:  6px;
+  --sp-4:  8px;
+  --sp-5: 10px;
+  --sp-6: 12px;
+  --sp-7: 14px;
+  --sp-8: 16px;
+  --sp-9: 18px;
+  --sp-10: 20px;
+  --sp-11: 22px;
+  --sp-12: 24px;
+  --sp-14: 28px;
+  --sp-16: 32px;
+
+  /* ───── Shadows ───── */
+  --shadow-popup:   0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-search:  0 4px 15px rgba(0, 0, 0, 0.5);
+  --shadow-panel:   0 8px 25px rgba(0, 0, 0, 0.6);
+  --shadow-glow-sky: 0 0 12px rgba(14, 165, 233, 0.6);
+  --shadow-glow-red: 0 0 12px rgba(239, 68, 68, 0.6);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Semantic helpers
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+.ds-h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-32);
+  font-weight: var(--fw-black);
+  color: var(--fg-1);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.1;
+}
+
+.ds-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-22);
+  font-weight: var(--fw-black);
+  color: var(--fg-1);
+  line-height: 1.2;
+}
+
+.ds-h3 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-black);
+  color: var(--fg-1);
+}
+
+.ds-section-title {
+  font-size: var(--fs-13);
+  font-weight: var(--fw-bold);
+  color: var(--fg-1);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--sp-4);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.ds-body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+
+.ds-table-cell {
+  font-size: var(--fs-12);
+  color: var(--fg-2);
+}
+
+.ds-label {
+  font-size: var(--fs-10);
+  font-weight: var(--fw-bold);
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.ds-sub {
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+}
+
+.ds-hint {
+  font-size: var(--fs-10);
+  color: var(--fg-ghost);
+}
+
+.ds-display {
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 400;
+  color: var(--fg-1);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.ds-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-bold);
+}
+
+.ds-kpi-val {
+  font-size: var(--fs-26);
+  font-weight: var(--fw-black);
+  color: var(--mode-2025);
+  line-height: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Reusable atoms (rough — for previews only)
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+.ds-card {
+  background: linear-gradient(145deg, var(--bg-card), var(--bg-panel));
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: var(--sp-8);
+}
+
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-7);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-heavy);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-loose);
+}
+
+.ds-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px 8px;
+  border-radius: var(--r-input);
+  font-size: var(--fs-10);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+
+.ds-tier-kritik {
+  background: var(--tier-kritik-tint);
+  color: var(--tier-kritik);
+  border: 1px solid var(--tier-kritik);
+}
+.ds-tier-yuksek {
+  background: var(--tier-yuksek-tint);
+  color: var(--tier-yuksek);
+  border: 1px solid var(--tier-yuksek);
+}
+.ds-tier-orta {
+  background: var(--tier-orta-tint);
+  color: var(--tier-orta-indigo);
+  border: 1px solid var(--tier-orta-indigo);
+}
+.ds-tier-dusuk {
+  background: var(--tier-dusuk-tint);
+  color: var(--tier-dusuk);
+  border: 1px solid var(--tier-dusuk);
+}

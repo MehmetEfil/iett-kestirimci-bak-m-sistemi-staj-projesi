@@ -1,0 +1,1092 @@
+===== CELL 0 [markdown] =====
+# 🔗 Analiz 1: Cascade (Zincirleme) Arıza Analizi — Tam Kanıt Zinciri
+
+**Hedef:** Bir arızadan sonra başka arıza tetikleniyor mu? Hangi pattern ML modeline güçlü feature olur?
+
+**Yöntem:** Şartlama yok, veri konuşur. Her iddiayı istatistiksel testle destekle.
+
+---
+
+## 1. Veri Yükleme + Feature Engineering
+===== CELL 1 [code] =====
+import pandas as pd
+import numpy as np
+import json
+import plotly.express as px
+import plotly.graph_objects as go
+from scipy import stats
+from datetime import timedelta
+import warnings
+warnings.filterwarnings('ignore')
+
+# Veri yukleme
+df = pd.read_csv('../panel_data/temiz_veri/ariza_model.csv')
+df['OLAYTARIHI'] = pd.to_datetime(df['OLAYTARIHI'], format='mixed')
+df = df.sort_values(['KAPINO', 'OLAYTARIHI']).reset_index(drop=True)
+
+print('=== TEMEL ISTATISTIK ===')
+print(f'Toplam ariza: {len(df):,}')
+print(f'Benzersiz arac: {df["KAPINO"].nunique():,}')
+print(f'Tarih araligi: {df["OLAYTARIHI"].min()} -> {df["OLAYTARIHI"].max()}')
+print(f'Veri penceresi: {(df["OLAYTARIHI"].max() - df["OLAYTARIHI"].min()).days} gun')
+print()
+print(f'Ciddi ariza (binary): {df["ciddi_ariza"].mean()*100:.1f}%')
+pri
+  [STREAM] === TEMEL ISTATISTIK ===
+Toplam ariza: 58,559
+Benzersiz arac: 3,509
+Tarih araligi: 2025-01-01 00:30:56 -> 2025-06-30 23:29:56
+Veri penceresi: 180 gun
+
+Ciddi ariza (binary): 38.0%
+Ciddiyet skoru: mean=3.610, std=1.859
+
+Kategori sayisi: 35
+
+=== ARDISIK ARIZA SURE FARKLARI ===
+count    55050.00
+mean         9.37
+std         12.36
+min          0.00
+10%          0.63
+25%          1.85
+50%          5.14
+75%         11.97
+90%         23.08
+max        175.75
+
+===== CELL 2 [markdown] =====
+---
+
+## 2. Cascade Eşik Analizi
+Ardışık arıza süre dağılımına göre "cascade" tanımı için doğal eşik bul.
+===== CELL 3 [code] =====
+# BOLUM 2: Cascade Esik Analizi — Veri konussun
+# Soru: "Cascade" demek icin ardisik arıza arasi sure kac saat/gun olmali?
+# Yontem: Sure dagilimini gor, dogal kirilma noktasini bul.
+
+valid = df[df['saat_farki'].notna()].copy()
+
+# Histogram: kac saat icinde tekrar ariza var?
+print('=== ARDISIK ARIZA SURE DAGILIMI ===')
+print(f'Total ardisik kayit: {len(valid):,}')
+print()
+print(f'{"Esik":15s}  pct_altinda  cumulative_n')
+for esik_saat in [1, 6, 24, 72, 168, 720]:
+    n_alt = (valid['saat_farki'] < esik_saat).sum()
+    pct = n_alt / len(valid) * 100
+    label = f'< {esik_saat}s' if esik_saat < 24 else f'< {esik_saat//24}g'
+    print(f'{label:15s}  {pct:6.2f}%      {n_alt:8d}')
+
+# Histogram gorselle
+sub = valid[valid['saat_farki'] <= 168]  # 7 gun ic histogram
+fig = px.histogram(sub, x='saat
+  [STREAM] === ARDISIK ARIZA SURE DAGILIMI ===
+Total ardisik kayit: 55,050
+
+Esik             pct_altinda  cumulative_n
+< 1s               0.70%           386
+< 6s               5.48%          3018
+< 1g              15.85%          8727
+< 3g              35.57%         19584
+< 7g              59.25%         32615
+< 30g             93.87%         51675
+
+  [RESULT] 
+  [STREAM] 
+Ardisik median sure: 123.3 saat (5.14 gun)
+
+=== CASCADE TANIMI (esik 24s) ===
+Cascade arizalar: 8,727 (14.9%)
+Stand-alone arizalar: 49,832
+
+===== CELL 4 [markdown] =====
+---
+
+## 3. Cascade Prevalansı (Random Null Model)
+Gözlemlenen cascade oranı rastgele beklentiden yüksek mi? Poisson null model ile karşılaştır.
+===== CELL 5 [code] =====
+# BOLUM 3: Cascade Prevalansi ve Random Null Karsilastirmasi
+# Soru: Gozlemlenen cascade orani rastgele beklentiden yuksek mi?
+# Yontem: Random null model — eger arizalar rastgele dagilsa cascade orani ne olurdu?
+
+# Gozlemlenen cascade orani
+gercek_cascade = df['cascade'].sum()
+gercek_orani = df['cascade'].mean()
+
+# Random null model:
+# Her arac icin: o aracin TOPLAM ariza sayisi sabit, ama TARIHLER veri penceresinde rastgele dagitilsa
+# 24 saat icinde tekrar olasiligi nedir?
+
+# Beklenti: araç başına lambda = N_ariza / N_gun (Poisson)
+# 24 saat icinde tekrar P(N>=2 | N>=1) = 1 - P(N=1|N>=1) (Poisson)
+
+veri_gun = (df['OLAYTARIHI'].max() - df['OLAYTARIHI'].min()).days
+arac_ariza_n = df.groupby('KAPINO').size()
+arac_lambda  = arac_ariza_n / veri_gun  # ariza/gun
+arac_lambda_24s = arac_lambda 
+  [STREAM] === RANDOM NULL MODEL ===
+Veri penceresi: 180 gun
+Ort. ariza/arac/gun (lambda): 0.0927
+Random beklenen cascade orani (24s pencere): 8.85%
+
+=== GOZLEMLENEN vs BEKLENEN ===
+Gozlemlenen cascade orani: 14.90%
+Beklenen (random):         8.85%
+Oran (gozlemlenen/beklenen): x1.68
+Z-test: z=49.95, p=0.000000
+VERIYE GORE: Cascade orani random beklentinin 1.68x USTUNDE (p<0.05).
+  -> Arizalar rastgele degil — gercek bir cascade etkisi var.
+
+===== CELL 6 [markdown] =====
+---
+
+## 4. Tetikleyici Mekanizma — Kategori × Kategori Matrisi
+Hangi sistem arızası hangi sonraki sistemi tetikliyor? Lift skoru + Chi² test.
+===== CELL 7 [code] =====
+# BOLUM 4: Tetikleyici Mekanizma — Kategori X Kategori Matrisi
+# Soru: Hangi sistem arizasi hangi sonraki arizayi tetikliyor?
+# Yontem: Cascade arizalarda onceki_kategori -> ARIZAUSTKODTANIM gecis matrisi + Lift
+
+cascade_df = df[df['cascade'] & df['onceki_kategori'].notna()].copy()
+print(f'Cascade ariza kaydi (gecis matrisi icin): {len(cascade_df):,}')
+
+# Gecis matrisi
+gecis = cascade_df.groupby(['onceki_kategori', 'ARIZAUSTKODTANIM']).size().reset_index(name='n')
+
+# Lift: P(B sonra | A once) / P(B genel)
+# P(B genel) = global frekans
+global_freq = df['ARIZAUSTKODTANIM'].value_counts(normalize=True)
+
+# Her A icin: sonraki B'lerin lift skoru
+lift_list = []
+for a_kat in cascade_df['onceki_kategori'].unique():
+    sub = cascade_df[cascade_df['onceki_kategori'] == a_kat]
+    if len(sub) < 20: 
+  [STREAM] Cascade ariza kaydi (gecis matrisi icin): 8,727
+
+=== EN GUCLU CASCADE TETIKLEYICILERI (lift > 2) ===
+Yorum: Lift=3 -> A oncesi olmasi, B arizasi olasiligini 3x artiriyor
+
+A (Onceki)                           -> B (Sonraki)                          n   P(B|A)%  Lift
+İLAVE DİREKSİYON SİSTEMİ ARIZALARI   -> İLAVE DİREKSİYON SİSTEMİ ARIZALARI    19   42.2    76.55
+ROT AYARLARI                         -> ROT AYARLARI                           8   22.2    33.63
+KWS SİSTEMİ ARIZALARI                -> KWS SİSTEMİ ARIZALARI                  9   19.1    33.37
+BASINÇLI YAĞ HATTI ARIZASI           -> BASINÇLI YAĞ HATTI ARIZASI            14   24.1    32.72
+DİREKSİYON ARIZALARI                 -> DİREKSİYON ARIZALARI                  11   19.0    23.78
+BASINÇLI MOTOR YAĞI SİSTEMİ          -> BASINÇLI MOTOR YAĞI SİSTEMİ           12   13.2    13.64
+LASTİK ARIZALARI                     -> LASTİK ARIZALARI                       7   11.5    13.25
+KAYIŞ KASNAK ARIZALARI               -> KAYIŞ KASNAK ARIZALARI                18   17.1    12.74
+KAMERA SİSTEMİ ARIZALARI             -> KAMERA SİSTEMİ ARIZALARI              71   32.9    12.74
+BASINÇLI HAVA DONANIMI ARIZALARI     -> BASINÇLI HAVA DONANIMI ARIZALARI      22   17.6    10.50
+BASINÇLI HAVA HATTI ARIZASI          -> BASINÇLI HAVA HATTI ARIZASI            7    7.8    9.53
+ISITMA SİSTEMİ                       -> ISITMA SİSTEMİ                       195   42.0    9.23
+YAKIT ve ENJEKSİYON ARIZALARI        -> YAKIT ve ENJEKSİYON ARIZALARI   
+===== CELL 8 [markdown] =====
+---
+
+## 5. Sankey Diyagramı — Görsel Akış
+En güçlü cascade tetikleyici→sonraki kategori akışları.
+===== CELL 9 [code] =====
+# BOLUM 5: Sankey Diyagrami — Cascade Akis Gorsellestirme
+
+# Top 10 en cok cascade tetikleyen kategori
+top_cascade_kat = cascade_df['onceki_kategori'].value_counts().head(10).index.tolist()
+top_cascade_kat = list(set(top_cascade_kat + cascade_df['ARIZAUSTKODTANIM'].value_counts().head(10).index.tolist()))
+
+sankey_df = cascade_df[
+    cascade_df['onceki_kategori'].isin(top_cascade_kat) &
+    cascade_df['ARIZAUSTKODTANIM'].isin(top_cascade_kat)
+].groupby(['onceki_kategori', 'ARIZAUSTKODTANIM']).size().reset_index(name='value')
+
+# Min cizgi: 30 kayit
+sankey_df = sankey_df[sankey_df['value'] >= 30]
+
+# Source/target/value list
+nodes = list(set(sankey_df['onceki_kategori']) | set(sankey_df['ARIZAUSTKODTANIM']))
+node_map = {n: i for i, n in enumerate(nodes)}
+
+# Source ve target gostermek icin: so
+  [RESULT] 
+  [STREAM] Sankey: 20 node, 60 edge
+En guclu 5 akis:
+  SOĞUTMA SİSTEMİ ARIZASI -> SOĞUTMA SİSTEMİ ARIZASI: 457
+  KAPI ARIZALARI -> KAPI ARIZALARI: 456
+  MOTOR ARIZALARI -> MOTOR ARIZALARI: 343
+  KLİMA SİSTEMİ ARIZALARI -> KLİMA SİSTEMİ ARIZALARI: 311
+  ELEKTRİK SİSTEMİ ARIZALARI -> ELEKTRİK SİSTEMİ ARIZALARI: 305
+
+===== CELL 10 [markdown] =====
+---
+
+## 6. Arıza Fırtınası — Yoğun Cluster'lar
+24s/7g/30g içinde N+ arıza yapan araçların prevalansı + ciddiyet karşılaştırması.
+===== CELL 11 [code] =====
+# BOLUM 6: Ariza Firtinasi — Yogun Cluster'lar
+# Sorular:
+# - 24 saat / 7 gun icinde 3+ ariza yapan kac arac var?
+# - Firtina yasayan araclar daha mi ciddi sorunlu?
+
+def firtina_say(df, pencere_saat, esik_n):
+    """Her arac icin: zaman penceresinde esik N kez ariza yapma sayisi."""
+    sonuc = {}
+    for kapino, sub in df.groupby('KAPINO'):
+        tarihler = sub['OLAYTARIHI'].sort_values().values
+        firtina_n = 0
+        for i in range(len(tarihler)):
+            pencere = tarihler[(tarihler >= tarihler[i]) &
+                                (tarihler <= tarihler[i] + np.timedelta64(pencere_saat, 'h'))]
+            if len(pencere) >= esik_n:
+                firtina_n += 1
+                # Bir kez sayilirsa skip (overlapping pencerelerden kacin)
+                break
+        sonuc[ka
+  [STREAM] 24s icinde 3+ ariza yapan arac: 613 / 3,509 (%17.5)
+7g icinde 5+ ariza yapan arac:  670 / 3,509 (%19.1)
+30g icinde 10+ ariza yapan arac: 561 / 3,509 (%16.0)
+
+=== FIRTINA YASAYAN ARACLAR vs DIGERLERI ===
+Firtinali (n=613):    ort_skor=3.597, std=0.531
+Firtinasiz (n=2703):  ort_skor=3.590, std=0.704
+Mann-Whitney U: u=828008, p=0.982833
+VERIYE GORE: Iki grup arasinda fark anlamsiz (p=0.9828).
+
+===== CELL 12 [markdown] =====
+---
+
+## 7. Inter-arrival Time Dağılımı (Survival)
+Bir arızadan sonra kaç gün arızasız kalıyor araç? Exponential dağılım uyumu testi.
+===== CELL 13 [code] =====
+# BOLUM 7: Inter-arrival Time Dagilimi (Survival)
+# Soru: Bir arizadan sonra kac gun arizasiz kaliyor arac?
+# Yontem: Kaplan-Meier benzeri ampirik survival fonksiyonu
+
+# Tum ardisik ariza ciftleri
+inter = df['saat_farki'].dropna() / 24  # gun cinsinden
+
+print('=== INTER-ARRIVAL TIME (GUN) ===')
+print(f'Toplam ardisik kayit: {len(inter):,}')
+print(f'Median: {inter.median():.2f} gun')
+print(f'Mean:   {inter.mean():.2f} gun')
+print(f'P25:    {inter.quantile(0.25):.2f} gun')
+print(f'P75:    {inter.quantile(0.75):.2f} gun')
+print(f'P95:    {inter.quantile(0.95):.2f} gun')
+
+# Survival fonksiyonu: S(t) = P(T > t)
+gunler = np.arange(0, 31, 1)
+survival = [(inter > t).mean() for t in gunler]
+
+print()
+print('=== SURVIVAL FONKSIYONU: P(Sonraki ariza > t gun) ===')
+print(f'{"Gun":5s}  S(t)    Pct ariza
+  [STREAM] === INTER-ARRIVAL TIME (GUN) ===
+Toplam ardisik kayit: 55,050
+Median: 5.14 gun
+Mean:   9.37 gun
+P25:    1.85 gun
+P75:    11.97 gun
+P95:    32.94 gun
+
+=== SURVIVAL FONKSIYONU: P(Sonraki ariza > t gun) ===
+Gun    S(t)    Pct ariza t gun icinde
+    0  1.000      0.0%
+    1  0.841     15.9%
+    3  0.644     35.6%
+    7  0.408     59.2%
+   14  0.208     79.2%
+   21  0.117     88.3%
+   30  0.061     93.9%
+
+=== DAGILIM TESTI ===
+Exponential scale tahmini: 9.37 gun
+K-S test: stat=0.0860, p=0.000000
+VERIYE GORE: Inter-arrival dagilimi exponential ile UYUMLU DEGIL (p<0.05).
+  -> Arizalar memoryless degil — gecmis pattern var.
+
+  [RESULT] 
+===== CELL 14 [markdown] =====
+---
+
+## 8. Araç Bazlı Cascade Profili
+Her araç için cascade oranı + yaş ile korelasyon + bant analizi.
+===== CELL 15 [code] =====
+# BOLUM 8: Arac Bazli Cascade Profili
+# Her arac icin cascade orani + yas/sefer ile iliski
+
+arac_cascade = df.groupby('KAPINO').agg(
+    toplam_ariza = ('cascade', 'count'),
+    cascade_n    = ('cascade', 'sum'),
+    cascade_orani = ('cascade', 'mean'),
+    modelyili    = ('MODELYILI', lambda x: x.mode().iloc[0]),
+    ort_skor     = ('ciddiyet_skoru', 'mean'),
+    ciddi_oran   = ('ciddi_ariza', 'mean'),
+).reset_index()
+arac_cascade['arac_yasi'] = 2025 - arac_cascade['modelyili']
+arac_cascade = arac_cascade[arac_cascade['toplam_ariza'] >= 5]  # gurultu eleme
+
+print(f'Analiz seti: {len(arac_cascade):,} arac (min 5 ariza)')
+print()
+print('=== CASCADE ORAN DAGILIMI ===')
+print(arac_cascade['cascade_orani'].describe([0.1, 0.25, 0.5, 0.75, 0.9]).round(3).to_string())
+
+# YAS x CASCADE
+r_yas, p_ya
+  [STREAM] Analiz seti: 3,316 arac (min 5 ariza)
+
+=== CASCADE ORAN DAGILIMI ===
+count    3316.000
+mean        0.125
+std         0.095
+min         0.000
+10%         0.000
+25%         0.053
+50%         0.125
+75%         0.190
+90%         0.250
+max         0.476
+
+=== YAS X CASCADE_ORAN KORELASYON ===
+Pearson  r=+0.030  p=0.0843
+Spearman r=+0.037  p=0.0313
+VERIYE GORE: Yas ile cascade orani anlamli iliskisiz.
+
+=== YAS BANT X CASCADE ===
+              n_arac  ort_cascade  ort_skor
+yas_bant                                   
+Yeni (0-5)       331        0.131     3.436
+Genc (6-10)      519        0.111     3.506
+Orta (11-15)    1803        0.126     3.604
+Yasli (16+)      663        0.130     3.702
+
+=== CASCADE ORAN BANT X CIDDIYET SKORU ===
+                      n  ort_skor  ort_ciddi
+cas_bant                                    
+Dusuk (<20%)       2636     3.597      0.368
+Orta (20-40%)       669     3.569      0.375
+Yuksek (40-60%)      11     3.593      0.356
+Cok Yuksek (60%+)     0       NaN        NaN
+
+ANOVA F=0.46, p=0.631048
+VERIYE GORE: Bandlar arasi fark anlamsiz.
+
+===== CELL 16 [markdown] =====
+---
+
+## 9. Confounder Kontrolü (Multiple Regression)
+Cascade-ciddiyet ilişkisi yaş/sefer/garaj kontrolü altında hâlâ anlamlı mı?
+===== CELL 17 [code] =====
+# BOLUM 9: Confounder Kontrolu
+# Soru: Cascade orani ile ciddiyet iliskisi yas/sefer gibi confounder'lardan mi geliyor?
+
+# Sefer sayisini ekle (arac_gunluk_hatlar.csv'den)
+arac_hatlar = pd.read_csv('../panel_data/temiz_veri/arac_gunluk_hatlar.csv')
+SEFER_KOL = [c for c in arac_hatlar.columns if 'SEFER' in c.upper()][0]
+arac_sefer = arac_hatlar.groupby('KAPINO')[SEFER_KOL].sum().reset_index()
+arac_sefer.columns = ['KAPINO', 'toplam_sefer']
+
+arac_cas_full = arac_cascade.merge(arac_sefer, on='KAPINO', how='left')
+
+# GARAJ
+arac_garaj = df.groupby('KAPINO')['GARAJ'].agg(lambda x: x.mode().iloc[0]).reset_index()
+arac_cas_full = arac_cas_full.merge(arac_garaj, on='KAPINO', how='left')
+
+# 1. SEFER X CASCADE
+r_s, p_s = stats.pearsonr(arac_cas_full['toplam_sefer'].fillna(0), arac_cas_full['cascade_o
+  [STREAM] === CONFOUNDER 1: SEFER YOGUNLUGU ===
+Sefer x Cascade_oran: r=-0.141, p=0.0000
+  -> NEGATIF iliski: cok sefer = az cascade.
+
+=== MULTIPLE REGRESSION: ort_skor ~ cascade_orani + yas + sefer + garaj ===
+
+Model                                       cascade_katsayi  p_cascade  R^2
+M1: sadece cascade                          -0.0375          0.762474  0.000
+M2: + yas + log_sefer                       -0.1859          0.131430  0.033
+M3: + garaj                                 -0.3640          0.002494  0.210
+
+VERIYE GORE: Confounder altinda cascade NEGATIF anlamli (p=0.0025).
+  -> Beklenmedik ters yon — paradoks.
+
+===== CELL 18 [markdown] =====
+---
+
+## 10. ML Feature Türetme
+12 yeni feature kandidatı (zaman pencereli + cascade tabanlı + tetik lift).
+===== CELL 19 [code] =====
+# BOLUM 10: ML FEATURE TURETME
+# Cascade analizinden ML model icin guclu feature kandidatlari uret.
+
+print('=== ML FEATURE TURETME ===')
+print('Her ariza icin t = ariza zamani olmak uzere "o ana kadar olan" gecmis feature\'lari.')
+print()
+
+# Her ariza icin: o ariza ZAMANI ICIN onceki feature'lar
+# (Bu, gercek tahmin senaryosunu simule eder — gelecegi bilmiyoruz)
+
+df_feat = df.copy()
+df_feat = df_feat.sort_values(['KAPINO', 'OLAYTARIHI']).reset_index(drop=True)
+
+# Cumulative features (her arac icin gecmis say)
+df_feat['ariza_sira']      = df_feat.groupby('KAPINO').cumcount()
+df_feat['gecmis_ciddi_n']  = df_feat.groupby('KAPINO')['ciddi_ariza'].cumsum().shift(1).fillna(0)
+df_feat['gecmis_ariza_n']  = df_feat['ariza_sira']
+
+# Time-window features (rolling)
+def gecmis_pencere(df_arac, gun):
+  
+  [STREAM] === ML FEATURE TURETME ===
+Her ariza icin t = ariza zamani olmak uzere "o ana kadar olan" gecmis feature'lari.
+
+Pencere bazli feature'lar hesaplaniyor...
+Farkli kategori sayisi hesaplaniyor...
+
+Feature seti hazir: 58,559 satir
+Yeni feature'lar:
+  gecmis_ariza_n
+  gecmis_ciddi_n
+  ariza_son_7g
+  ariza_son_30g
+  ariza_son_60g
+  ciddi_son_30g
+  ciddi_son_7g
+  son_ariza_gun
+  farkli_kat_30g
+  cascade_24s
+  cascade_7g_3plus
+  tetik_kat_lift
+
+===== CELL 20 [markdown] =====
+---
+
+## 11. Feature × Ciddiyet Korelasyon Testleri
+Her feature için Pearson + Spearman + point-biserial.
+===== CELL 21 [code] =====
+# BOLUM 11: Feature Korelasyon Testleri
+# Her feature x ciddiyet_skoru + ciddi_ariza icin Pearson + Spearman
+
+print('=== FEATURE x CIDDIYET KORELASYON ===')
+print(f'{"Feature":25s}  Pearson_r  p        Spearman_rs  p')
+
+features = ['gecmis_ariza_n','gecmis_ciddi_n','ariza_son_7g','ariza_son_30g',
+            'ariza_son_60g','ciddi_son_30g','ciddi_son_7g',
+            'son_ariza_gun','farkli_kat_30g','cascade_24s','cascade_7g_3plus','tetik_kat_lift']
+
+sonuclar_korr = []
+for f in features:
+    valid = df_feat.dropna(subset=[f])
+    r, p = stats.pearsonr(valid[f], valid['ciddiyet_skoru'])
+    rs, ps = stats.spearmanr(valid[f], valid['ciddiyet_skoru'])
+    sonuclar_korr.append({'feature': f, 'r': r, 'p': p, 'rs': rs, 'ps': ps, 'abs_r': abs(r)})
+    print(f'{f:25s}  {r:+.4f}    {p:.4f}   {rs:+.
+  [STREAM] === FEATURE x CIDDIYET KORELASYON ===
+Feature                    Pearson_r  p        Spearman_rs  p
+gecmis_ariza_n             +0.0277    0.0000   +0.0508      0.0000
+gecmis_ciddi_n             +0.0492    0.0000   +0.0741      0.0000
+ariza_son_7g               +0.0368    0.0000   +0.0526      0.0000
+ariza_son_30g              +0.0280    0.0000   +0.0500      0.0000
+ariza_son_60g              +0.0332    0.0000   +0.0555      0.0000
+ciddi_son_30g              +0.0611    0.0000   +0.0821      0.0000
+ciddi_son_7g               +0.0634    0.0000   +0.0739      0.0000
+son_ariza_gun              -0.0208    0.0000   -0.0590      0.0000
+farkli_kat_30g             +0.0313    0.0000   +0.0491      0.0000
+cascade_24s                +0.0378    0.0000   +0.0427      0.0000
+cascade_7g_3plus           +0.0249    0.0000   +0.0340      0.0000
+tetik_kat_lift             +0.0047    0.2526   +0.0005      0.8963
+
+=== EN GUCLU FEATURE'LAR (|r| sirali) ===
+✓ ciddi_son_7g             : |r|=0.063  yon=+
+✓ ciddi_son_30g            : |r|=0.061  yon=+
+✓ gecmis_ciddi_n           : |r|=0.049  yon=+
+✓ cascade_24s              : |r|=0.038  yon=+
+✓ ariza_son_7g             : |r|=0.037  yon=+
+✓ ariza_son_60g            : |r|=0.033  yon=+
+✓ farkli_kat_30g           : |r|=0.031  yon=+
+✓ ariza_son_30g            : |r|=0.028  yon=+
+
+=== FEATURE x CIDDI_ARIZA (binary) ===
+gecmis_ariza_n             r=+0.0530  p=0.0000
+gecmis_ciddi_n             r=+0.0693  p=0.0000
+ariza_son_7g               r=+0.0540  p=0.0000
+ariz
+===== CELL 22 [markdown] =====
+---
+
+## 12. Bant Analizi — En Güçlü Feature'lar
+Feature bantlarında ciddiyet skoru ortalaması (ANOVA).
+===== CELL 23 [code] =====
+# BOLUM 12: Bant Analizi — En Guclu Feature'lar Icin
+# En guclu feature'larin bantlarinda ciddiyet skoru ortalamasi ANOVA ile
+
+print('=== BANT ANALIZI: gecmis_ciddi_n ===')
+df_feat['gciddi_bant'] = pd.cut(df_feat['gecmis_ciddi_n'],
+    bins=[-0.1, 0.5, 2.5, 5.5, 100],
+    labels=['Hic (0)', 'Az (1-2)', 'Orta (3-5)', 'Cok (6+)'])
+bant1 = df_feat.groupby('gciddi_bant', observed=False)['ciddiyet_skoru'].agg(['count','mean','std']).round(3)
+print(bant1.to_string())
+
+gruplar = [g['ciddiyet_skoru'].values for _, g in df_feat.groupby('gciddi_bant', observed=False) if len(g) >= 10]
+if len(gruplar) >= 2:
+    f, p = stats.f_oneway(*gruplar)
+    print(f'\nANOVA F={f:.2f}, p={p:.6f}')
+    if p < 0.05:
+        print('VERIYE GORE: gecmis_ciddi_n bandlari arasinda ciddi skor ANLAMLI farkli.')
+
+print()
+pr
+  [STREAM] === BANT ANALIZI: gecmis_ciddi_n ===
+             count   mean    std
+gciddi_bant                     
+Hic (0)       7097  3.370  1.918
+Az (1-2)     16749  3.560  1.924
+Orta (3-5)   16900  3.650  1.854
+Cok (6+)     17813  3.714  1.766
+
+ANOVA F=65.05, p=0.000000
+VERIYE GORE: gecmis_ciddi_n bandlari arasinda ciddi skor ANLAMLI farkli.
+
+=== BANT ANALIZI: ariza_son_30g ===
+           count   mean    std
+s30g_bant                     
+Hic         6884  3.499  1.978
+1-2        18548  3.576  1.926
+3-5        21622  3.630  1.821
+6+         11505  3.693  1.738
+
+ANOVA F=18.81, p=0.000000
+
+=== BANT ANALIZI: farkli_kat_30g ===
+            count   mean    std
+fk30g_bant                     
+0            6884  3.499  1.978
+1-2         24299  3.587  1.899
+3-5         24515  3.649  1.793
+6+           2861  3.742  1.758
+
+=== BANT ANALIZI: son_ariza_gun (kucuk = yakın zaman) ===
+          count   mean    std
+sag_bant                     
+<1g        8727  3.778  1.851
+1-7g      23888  3.627  1.807
+7-30g     19060  3.552  1.876
+>30g/hic   6884  3.499  1.978
+
+ANOVA F=38.95, p=0.000000
+
+===== CELL 24 [markdown] =====
+---
+
+## 13. Vaka Analizi — En Çok Cascade Yapan 10 Araç
+Spesifik araç profili, geçiş pattern'ı, zaman çizelgesi.
+===== CELL 25 [code] =====
+# BOLUM 13: Vaka Analizi — En Cok Cascade Yapan 10 Arac
+
+# Cascade orani en yuksek araclar (min 10 ariza)
+en_cascade = arac_cascade[arac_cascade['toplam_ariza'] >= 10].nlargest(10, 'cascade_orani')
+
+print('=== EN COK CASCADE YAPAN 10 ARAC ===')
+print(f'{"KAPINO":10s}  yas  toplam_n  cascade_n  cascade_%  ort_skor')
+for _, r in en_cascade.iterrows():
+    print(f'{r.KAPINO:10s}  {r.arac_yasi:3.0f}  {r.toplam_ariza:8d}  {r.cascade_n:9d}  {r.cascade_orani*100:7.1f}%  {r.ort_skor:.2f}')
+
+# Bu araclar icin tipik cascade akisi nedir?
+print()
+print('=== BU ARACLARDA EN COK GORULEN CASCADE GECISLERI ===')
+high_cas = set(en_cascade['KAPINO'])
+high_cas_df = cascade_df[cascade_df['KAPINO'].isin(high_cas)]
+gecisler = high_cas_df.groupby(['onceki_kategori', 'ARIZAUSTKODTANIM']).size().reset_index(name='
+  [STREAM] === EN COK CASCADE YAPAN 10 ARAC ===
+KAPINO      yas  toplam_n  cascade_n  cascade_%  ort_skor
+K3729        12        21         10     47.6%  3.44
+M6100        13        20          9     45.0%  2.42
+K5729        12        23         10     43.5%  3.14
+M2185        19        19          8     42.1%  3.93
+O3643         3        43         18     41.9%  4.13
+K4256        12        12          5     41.7%  4.28
+M3261        17        24         10     41.7%  3.95
+T3715        11        12          5     41.7%  3.51
+T4689        11        24         10     41.7%  3.89
+O6772         3        22          9     40.9%  3.66
+
+=== BU ARACLARDA EN COK GORULEN CASCADE GECISLERI ===
+  KLİMA SİSTEMİ ARIZALARI -> KLİMA SİSTEMİ ARIZALARI: 6
+  KAPI ARIZALARI -> KAPI ARIZALARI: 5
+  MOTOR ARIZALARI -> ELEKTRİK SİSTEMİ ARIZALAR: 4
+  ELEKTRİK SİSTEMİ ARIZALAR -> KAPI ARIZALARI: 4
+  ELEKTRİK SİSTEMİ ARIZALAR -> ELEKTRİK SİSTEMİ ARIZALAR: 3
+  SOĞUTMA SİSTEMİ ARIZASI -> MOTOR ARIZALARI: 3
+  MOTOR ARIZALARI -> MOTOR ARIZALARI: 3
+  KLİMA SİSTEMİ ARIZALARI -> ELEKTRİK SİSTEMİ ARIZALAR: 2
+  KAPI ARIZALARI -> ELEKTRİK SİSTEMİ ARIZALAR: 2
+  ISITMA SİSTEMİ -> ISITMA SİSTEMİ: 2
+
+=== K3729 ZAMAN CIZELGESI (ornek) ===
+Toplam ariza: 21
+Ilk ariza:    2025-01-03 18:27
+Son ariza:    2025-06-25 15:08
+Cascade zincir sayisi (24s icinde ardisik): 4
+
+===== CELL 26 [markdown] =====
+---
+
+## 14. Operasyonel Uyarı Eşiği
+Hangi pattern flag edilmeli? Lift skoruna göre uyarı kural önerileri.
+===== CELL 27 [code] =====
+# BOLUM 14: Operasyonel Uyari Esigi
+# Soru: Hangi pattern flag edilmeli? Hangi esik ML/uyari sistemi icin uygun?
+
+# Test edilecek "uyari kurali" senaryolari
+print('=== UYARI ESIK SENARYOLARI ===')
+print('Kural: bu pattern\'i gosteren arac "yuksek risk" olarak isaretlensin')
+print()
+
+senaryolar = [
+    ('Son 7g 3+ ariza',        df_feat['ariza_son_7g']  >= 3),
+    ('Son 30g 5+ ariza',       df_feat['ariza_son_30g'] >= 5),
+    ('Son 7g 2+ ciddi',        df_feat['ciddi_son_7g']  >= 2),
+    ('Son 30g 3+ ciddi',       df_feat['ciddi_son_30g'] >= 3),
+    ('Son 30g 3+ farkli kat',  df_feat['farkli_kat_30g'] >= 3),
+    ('Cascade 24s',            df_feat['cascade_24s']    == 1),
+    ('Tetik_lift > 2',         df_feat['tetik_kat_lift'] > 2),
+]
+
+print(f'{"Kural":35s}  flag_n  ort_ciddi  ciddi_or_flag
+  [STREAM] === UYARI ESIK SENARYOLARI ===
+Kural: bu pattern'i gosteren arac "yuksek risk" olarak isaretlensin
+
+Kural                                flag_n  ort_ciddi  ciddi_or_flag  ciddi_or_diger  Lift
+Son 7g 3+ ariza                        5420  3.755       43.5%         37.4%       1.16
+Son 30g 5+ ariza                      17157  3.671       41.1%         36.7%       1.12
+Son 7g 2+ ciddi                        3456  3.914       47.1%         37.4%       1.26
+Son 30g 3+ ciddi                      10212  3.782       44.5%         36.6%       1.21
+Son 30g 3+ farkli kat                 27376  3.659       40.1%         36.2%       1.11
+Cascade 24s                            8727  3.778       43.5%         37.1%       1.17
+Tetik_lift > 2                        54657  3.616       38.3%         34.0%       1.13
+
+=== KARAR ===
+Lift > 1.5 olan uyarilar = MUDAHALE EDILMELI (kaza/ciddi ariza onlenmesi)
+
+=== KOMBINASYON UYARI ===
+Kural: son 30g 3+ ariza VE 2+ farkli kategori
+  flag: 32,440, ciddi orani: 40.0%
+  diger: 26,119, ciddi orani: 35.5%
+  Lift: 1.13
+
+===== CELL 28 [markdown] =====
+---
+
+## 15. Alt Kategori (ARIZAKODU) Bazlı Lift
+Üst kategori lift zayıftı. Alt sistem (ARIZAKODU) bazında tekrar pattern daha güçlü olabilir.
+
+**DİKKAT:** Bakım türü (değişim vs tamir) verimizde YOK. Sebep yorumlamaz, sadece veri raporlar.
+===== CELL 29 [code] =====
+# BOLUM 15: Alt Kategori (ARIZAKODU) Bazli Lift
+# Ust kategori lift'i zayifti (r=0.005). Alt sistem (ARIZAKODU) bazinda daha guclu olabilir.
+# Veri tabani: bu seviyede tekrar pattern hangi spesifik parcalarda guclu?
+#
+# DIKKAT: Bakim turu (degisim vs tamir) verimizde YOK. Yani:
+# - Ayni ARIZAKODU tekrari = parca degismedi mi, tamir kalitesi dusuk mu, yoksa farkli bir nedenle mi?
+# - Bilemeyiz. Sadece veriyi raporlariz.
+
+# Alt kategori (ARIZAKODU) bazinda self-cascade lift
+df_ak = df.copy()
+df_ak['onceki_ariza_kodu'] = df_ak.groupby('KAPINO')['ARIZAKODU'].shift(1)
+df_ak['cascade'] = df_ak['saat_farki'] < 24
+
+cascade_ak = df_ak[df_ak['cascade'] & df_ak['onceki_ariza_kodu'].notna()].copy()
+print(f'Alt kategori cascade kayit: {len(cascade_ak):,}')
+
+# Self-cascade: ayni ARIZAKODU tekrar
+self_ak
+  [STREAM] Alt kategori cascade kayit: 8,727
+Self-cascade (ayni ARIZAKODU): 1,734 (19.9%)
+
+=== EN GUCLU ALT KATEGORI SELF-CASCADE LIFT (top 20) ===
+ARIZAKODU                                           ust_kat                 n_self  Lift
+VİTESTEN ATIYOR                                     OTOMATİK ŞANZIMAN ARIZ      9  136.0
+KORNA ÇALMIYOR                                      ELEKTRİK SİSTEMİ ARIZA      8  110.9
+İÇ AYDINLATMA LAMBALARI YANMIYOR                    ELEKTRİK SİSTEMİ ARIZA      9  96.1
+KAMERA AÇILARI UYGUN DEĞİL                          KAMERA SİSTEMİ ARIZALA      6  96.0
+ŞOFÖR KABİN KAPISI ARIZALI                          KAROSER ARIZALARI           5  87.1
+KAPI DURACAK DÜĞMESİ ARIZALI                        KAPI ARIZALARI              5  72.7
+BEYİN ARIZALARI                                     ELEKTRİK SİSTEMİ ARIZA      9  71.2
+AKBİL OKUMUYOR                                      AKBİL ARIZALARI             9  57.8
+ŞANZIMAN YAĞ SICAKLIĞI YÜKSEK                       OTOMATİK ŞANZIMAN ARIZ      7  51.3
+SİLECEK ARIZALARI                                   ELEKTRİK SİSTEMİ ARIZA     13  44.1
+ÖN TAKIM KONTROL                                    ROT AYARLARI                8  38.2
+KÖRÜK BÜKÜLME KUMANDA HATASI                        KWS SİSTEMİ ARIZALARI       8  35.6
+DİREKSİYON ÇOK AĞIR                                 DİREKSİYON ARIZALARI        6  34.2
+MOTOR YAĞI EKSİK                                    BASINÇLI MOTOR YAĞI Sİ      6  31.7
+Garajlar arası çekici hizmeti           
+===== CELL 30 [markdown] =====
+---
+
+## 16. Cascade × Sistem Subgroup
+Hangi sistemde cascade ciddiyet artırıyor, hangisinde değil? Mann-Whitney testleri.
+
+**Veri ne diyor:** Bakım türü bilinmez, sebep yorumlanmaz.
+===== CELL 31 [code] =====
+# BOLUM 16: Cascade × Sistem Subgroup — Hangi Sistemlerde Cascade Ciddiyet ARTTIRIYOR?
+# Soru: Cascade pattern her sistemde ayni mi? Bazi sistemlerin cascade'i ciddi, bazilari degil mi?
+# DIKKAT: Bakim turu (degisim vs tamir) yok. Sebep yorumlanmayacak, sadece veri.
+
+df_feat_x = df_feat.copy()
+df_feat_x['kategori'] = df_feat_x['ARIZAUSTKODTANIM']
+
+# Her kategori icin: cascade arizalarinda ortalama ciddiyet skoru vs stand-alone
+print('=== KATEGORI BAZLI: CASCADE vs STAND-ALONE CIDDIYET ===')
+print(f'{"Kategori":35s}  cascade_n  ort_skor_C  stand_n   ort_skor_S  fark    p')
+
+sistem_sonuc = []
+for kat in df_feat_x['kategori'].value_counts().head(20).index:
+    sub = df_feat_x[df_feat_x['kategori'] == kat]
+    cascade_sub  = sub[sub['cascade_24s'] == 1]
+    standalone_sub = sub[sub['cascade_24
+  [STREAM] === KATEGORI BAZLI: CASCADE vs STAND-ALONE CIDDIYET ===
+Kategori                             cascade_n  ort_skor_C  stand_n   ort_skor_S  fark    p
+✓ SOĞUTMA SİSTEMİ ARIZASI              1048     3.456       5334    3.317     +0.138  0.0243
+✓ KAPI ARIZALARI                       1042     3.180       5103    3.002     +0.178  0.0001
+✓ ELEKTRİK SİSTEMİ ARIZALARI            900     3.379       5035    2.964     +0.414  0.0000
+✓ MOTOR ARIZALARI                       871     4.549       4766    4.304     +0.245  0.0001
+  KAROSER ARIZALARI                     456     2.845       3743    2.818     +0.027  0.8624
+✓ KLİMA SİSTEMİ ARIZALARI               674     3.055       3269    2.841     +0.215  0.0001
+  FREN ŞİKAYETLERİ                      504     5.076       3343    4.958     +0.117  0.3600
+  SÜSPANSİYON SİSTEMİ ARIZALARI         512     4.067       2875    3.959     +0.108  0.1583
+✓ OTOMATİK ŞANZIMAN ARIZALARI           554     4.659       2670    4.427     +0.232  0.0037
+✓ ISITMA SİSTEMİ                        452     3.364       2214    3.115     +0.250  0.0022
+  Destek                                258     7.894       1829    7.884     +0.009  0.5951
+✓ AKBİL ARIZALARI                       220     1.124       1792    1.114     +0.010  0.0096
+✓ YAKIT ve ENJEKSİYON ARIZALARI         232     3.677       1517    3.382     +0.295  0.0207
+  KAMERA SİSTEMİ ARIZALARI              188     1.240       1323    1.151     +0.089  0.2952
+  BASINÇLI HAVA DONANIMI ARIZALARI      146     4.
+===== CELL 32 [markdown] =====
+---
+
+## 17. Fırtına Paradoksu Açıklaması
+Bölüm 6'da fırtına yaşayan araçlar daha ciddi değil çıktı. Hangi sistemler fırtına yaratıyor?
+===== CELL 33 [code] =====
+# BOLUM 17: Firtina Paradoksu Aciklamasi
+# Cell 11'de: Firtinali araclar daha ciddi DEGIL (p=0.98). Garip.
+# Soru: Firtina hangi sistemlerin tekrarindan olusuyor?
+# DIKKAT: Sebep yorumlanmaz (bakim turu bilinmiyor), sadece raporlanir.
+
+# 24s icinde 3+ ariza yapan araclar
+firtina_arac_set = set()
+for kapino, sub in df.groupby('KAPINO'):
+    tarihler = sub['OLAYTARIHI'].sort_values().values
+    for i in range(len(tarihler)):
+        pencere = tarihler[(tarihler >= tarihler[i]) &
+                            (tarihler <= tarihler[i] + np.timedelta64(24, 'h'))]
+        if len(pencere) >= 3:
+            firtina_arac_set.add(kapino)
+            break
+
+# Bu araclarin TUM arizalarini al
+firtina_df = df[df['KAPINO'].isin(firtina_arac_set)]
+diger_df = df[~df['KAPINO'].isin(firtina_arac_set)]
+
+print(f
+  [STREAM] Firtinali arac sayisi: 613
+Firtinali ariza sayisi: 15,754
+
+=== FIRTINALI ARACLARDA EN COK GORULEN SISTEMLER ===
+Kategori                             firt_%   genel_%   Lift
+KAPI ARIZALARI                        12.71   10.49    1.21
+SOĞUTMA SİSTEMİ ARIZASI               11.11   10.90    1.02
+ELEKTRİK SİSTEMİ ARIZALARI            10.64   10.14    1.05
+MOTOR ARIZALARI                        9.83    9.63    1.02
+KLİMA SİSTEMİ ARIZALARI                6.81    6.73    1.01
+KAROSER ARIZALARI                      6.68    7.17    0.93
+SÜSPANSİYON SİSTEMİ ARIZALARI          6.18    5.78    1.07
+FREN ŞİKAYETLERİ                       6.09    6.57    0.93
+OTOMATİK ŞANZIMAN ARIZALARI            5.71    5.51    1.04
+ISITMA SİSTEMİ                         4.33    4.55    0.95
+
+=== FIRTINALI ARACLARIN ARIZA CIDDIYETI DETAYI ===
+Firtinali ariza ort_skor:  3.618
+Diger ariza ort_skor:      3.607
+Firtinali ciddi_ariza %:    39.2
+Diger ciddi_ariza %:        37.6
+
+=== TOP FIRTINA SISTEMLERINDE CIDDI_ARIZA ORANI ===
+Sistem                               toplam_ciddi%
+KAPI ARIZALARI                       25.2%
+SOĞUTMA SİSTEMİ ARIZASI              26.8%
+ELEKTRİK SİSTEMİ ARIZALARI           24.6%
+MOTOR ARIZALARI                      54.8%
+KLİMA SİSTEMİ ARIZALARI              30.6%
+
+=== YORUM (veriden) ===
+Firtina patternine bakarak hangi sistemler tekrar tekrar arizalanıyor goruluyor.
+Bakim turu (degisim/tamir) bilinmeden sebep cikarilamaz.
+Veri raporu: firtina yaratan sistemlerin ortalama ciddiyet sk
+===== CELL 34 [markdown] =====
+---
+
+## 18. Ordinal/Bant Feature'lar (Tree Model İçin)
+Lineer korelasyon zayıf, ANOVA güçlü → tree model için ordinal feature'lar uygulanır.
+===== CELL 35 [code] =====
+# BOLUM 18: Ordinal/Bant Feature'lar (Tree Model Icin)
+# Bolum 11'de Pearson r zayifti (max 0.06).
+# Ama Bolum 12 ANOVA F=65 cok guclu (gecmis_ciddi_n bantlari arasinda fark var).
+# Bu non-linear/monotonic iliski demek — tree-based modeller (XGBoost) bunu yakalar.
+# Yeni ordinal feature'lar uretelim.
+
+# Ordinal bantlar: gecmis_ciddi_n
+df_feat['ord_gecmis_ciddi'] = pd.cut(df_feat['gecmis_ciddi_n'],
+    bins=[-0.1, 0.5, 2.5, 5.5, 1000],
+    labels=[0, 1, 2, 3]).astype(int)
+
+# Ordinal: ariza_son_7g
+df_feat['ord_son7g'] = pd.cut(df_feat['ariza_son_7g'],
+    bins=[-0.1, 0.5, 1.5, 2.5, 100],
+    labels=[0, 1, 2, 3]).astype(int)
+
+# Ordinal: son_ariza_gun (kucuk = yakın zaman = risk)
+df_feat['ord_son_ariza'] = pd.cut(df_feat['son_ariza_gun'],
+    bins=[-0.1, 1, 7, 30, 1000],
+    labels=[3, 2, 1, 0
+  [STREAM] === ORDINAL FEATURE'LAR ===
+       ord_gecmis_ciddi  ord_son7g  ord_son_ariza  ord_farkli_kat  cascade_risk_skor
+count          58559.00   58559.00       58559.00        58559.00           58559.00
+mean               1.78       0.89           1.59            1.40               5.66
+std                1.01       0.98           0.88            0.76               2.68
+min                0.00       0.00           0.00            0.00               0.00
+25%                1.00       0.00           1.00            1.00               4.00
+50%                2.00       1.00           2.00            1.00               6.00
+75%                3.00       1.00           2.00            2.00               8.00
+max                3.00       3.00           3.00            3.00              12.00
+
+=== ORDINAL FEATURE x CIDDIYET KORELASYON ===
+ord_gecmis_ciddi        Pearson r=+0.0554  Spearman rs=+0.0724  CiddiAriza r=+0.0724
+ord_son7g               Pearson r=+0.0379  Spearman rs=+0.0526  CiddiAriza r=+0.0551
+ord_son_ariza           Pearson r=+0.0429  Spearman rs=+0.0564  CiddiAriza r=+0.0584
+ord_farkli_kat          Pearson r=+0.0301  Spearman rs=+0.0465  CiddiAriza r=+0.0471
+cascade_risk_skor       Pearson r=+0.0573  Spearman rs=+0.0775  CiddiAriza r=+0.0799
+
+=== CASCADE_RISK_SKOR BANTLARINA GORE CIDDIYET ===
+                     n  ort_skor  ciddi_p
+crs_bant                                 
+Cok Dusuk (0-2)   7370     3.424    0.319
+Dusuk (3-5)      21389     3.557    0.357
+Yuksek (6-8)   
+===== CELL 36 [markdown] =====
+---
+
+## 19. Suppressor Effect Açıklaması (Cell 17 Paradoks)
+Cell 17'deki M3 cascade negatif anlamlılığı suppressor effect — açıklama ve karar.
+===== CELL 37 [code] =====
+# BOLUM 19: Suppressor Effect Aciklamasi (Cell 17 Paradoks)
+# Cell 17'de M3 modelinde cascade_orani NEGATIF anlamli cikti (k=-0.36, p=0.003).
+# Bu paradoks degil "suppressor effect" — kontrol degiskenler dahil edilince yon degisebilir.
+
+# Ham korelasyon vs partial
+print('=== SUPPRESSOR EFFECT KONTROLU ===')
+
+# Ham korelasyon
+r_ham, p_ham = stats.pearsonr(arac_cas_full['cascade_orani'], arac_cas_full['ort_skor'])
+print(f'Ham korelasyon cascade x ort_skor: r={r_ham:+.3f}, p={p_ham:.4f}')
+
+# Yas ile ham korelasyon (kontrol degiskeni)
+r_y_c, p_y_c = stats.pearsonr(arac_cas_full['arac_yasi'], arac_cas_full['cascade_orani'])
+r_y_s, p_y_s = stats.pearsonr(arac_cas_full['arac_yasi'], arac_cas_full['ort_skor'])
+print(f'Yas x Cascade:  r={r_y_c:+.3f}, p={p_y_c:.4f}')
+print(f'Yas x Skor:     r={r_y_s
+  [STREAM] === SUPPRESSOR EFFECT KONTROLU ===
+Ham korelasyon cascade x ort_skor: r=-0.005, p=0.7625
+Yas x Cascade:  r=+0.030, p=0.0843
+Yas x Skor:     r=+0.138, p=0.0000
+Sefer x Cascade: r=-0.141, p=0.0000
+Sefer x Skor:    r=-0.122, p=0.0000
+
+=== GARAJ KONTROL ETKISI ===
+Model                                     cascade_k  cascade_p   R^2
+A: sadece cascade                         -0.0375    0.7625    0.000
+B: +yas                                   -0.0670    0.5858    0.019
+C: +yas+sefer                             -0.1859    0.1314    0.033
+D: +yas+sefer+garaj                       -0.3640    0.0025    0.210
+
+=== YORUM (suppressor effect) ===
+Cascade katsayi modeller ilerledikce kontrolleri ile yon degistiriyor:
+  A (kontrolsuz): -0.037
+  D (full kontrol): -0.364
+
+Bu suppressor effect oldugunu gosterir:
+ - Cascade orani garaj ve sefer ile pozitif korelasyon icinde.
+ - Garaj/sefer kontrol edildiginde, cascade ile skor arasindaki gercek
+   net iliski ortaya cikiyor (potansiyel olarak negatif veya farkli yonlu).
+ - "Cascade az -> ariza ciddi degil" diye yorumlanmamali; bu sadece
+   garaj ve sefer dagiliminin etkisi.
+
+SONUC: Cascade_orani tek basina ML feature olarak GUVENSIZ.
+  Bunun yerine ordinal bantsal feature'lar (cascade_risk_skor) kullanilmali.
+
+===== CELL 38 [markdown] =====
+---
+
+## 20. Sistem Bazlı Cascade Lift Feature (Final Test)
+Cell 31'de tespit edilen "sistem cascade ciddiyet artış" verilerini ML feature olarak türet ve test et.
+===== CELL 39 [code] =====
+# BOLUM 20: Sistem Bazli Cascade Lift Feature
+# Cell 31'de hangi sistemlerde cascade ciddiyet artirdigi tespit edildi.
+# Bu bilgiyi feature olarak turetip ML icin test edelim.
+
+# Cell 31'in sonuclarini yeniden hesapla (sistem -> cascade lift)
+# Lift = ort_skor_cascade / ort_skor_standalone
+sistem_lift = {}
+for kat in df_feat['ARIZAUSTKODTANIM'].value_counts().head(25).index:
+    sub = df_feat[df_feat['ARIZAUSTKODTANIM'] == kat]
+    c_sub = sub[sub['cascade_24s'] == 1]
+    s_sub = sub[sub['cascade_24s'] == 0]
+    if len(c_sub) < 20 or len(s_sub) < 50:
+        sistem_lift[kat] = 1.0  # default
+        continue
+    skor_c = c_sub['ciddiyet_skoru'].mean()
+    skor_s = s_sub['ciddiyet_skoru'].mean()
+    lift = skor_c / skor_s if skor_s > 0 else 1.0
+    sistem_lift[kat] = lift
+
+print('=== SISTEM
+  [STREAM] === SISTEM CASCADE LIFT (ciddiyet artis orani) ===
+  İLAVE DİREKSİYON SİSTEMİ ARIZALARI      : lift=1.247
+  YANGIN İKAZ ARIZALARI                   : lift=1.148
+  ELEKTRİK SİSTEMİ ARIZALARI              : lift=1.140
+  BASINÇLI MOTOR YAĞI SİSTEMİ             : lift=1.088
+  YAKIT ve ENJEKSİYON ARIZALARI           : lift=1.087
+  ISITMA SİSTEMİ                          : lift=1.080
+  KAMERA SİSTEMİ ARIZALARI                : lift=1.077
+  KLİMA SİSTEMİ ARIZALARI                 : lift=1.076
+  DİREKSİYON ARIZALARI                    : lift=1.066
+  BASINÇLI HAVA DONANIMI ARIZALARI        : lift=1.061
+  KAPI ARIZALARI                          : lift=1.059
+  MOTOR ARIZALARI                         : lift=1.057
+  OTOMATİK ŞANZIMAN ARIZALARI             : lift=1.052
+  SOĞUTMA SİSTEMİ ARIZASI                 : lift=1.042
+  BASINÇLI HAVA HATTI ARIZASI             : lift=1.029
+
+=== YENI FEATURE KORELASYON ===
+sistem_cas_lift            Pearson r=-0.1804  Spearman rs=-0.1841  CiddiAriza r=-0.1291  (p_pearson=0.0000)
+lift_x_cascade             Pearson r=+0.0355  Spearman rs=+0.0369  CiddiAriza r=+0.0460  (p_pearson=0.0000)
+
+=== SISTEM_CAS_LIFT BANTLARINA GORE ===
+                      n  ort_skor  ciddi_p
+scl_bant                                  
+Yok (≤1.0)         1664     3.776    0.335
+Hafif (1.0-1.05)  23547     3.905    0.430
+Orta (1.05-1.10)  26890     3.453    0.366
+Yuksek (1.10+)     6458     3.144    0.268
+
+ANOVA F=409.64, p=0.000000
+
+=== LIFT_X_CASCADE = SISTEM_LIFT * CASCADE_24S 
+===== CELL 40 [markdown] =====
+---
+
+## 21. Common Cause vs True Cascade Ayrımı
+Mevcut cascade tanımımız sequential pattern içeriyor. Bu pattern iki sebepten gelebilir:
+- **True Cascade:** A bozulması B'yi tetikledi (mekanik)
+- **Common Cause:** Dışarıdan ortak sebep (yol, hava, sürüş) hem A hem B'yi etkiledi
+
+Test: Aynı zaman + aynı HAT + farklı araç + aynı sistem = common cause sinyali.
+===== CELL 41 [code] =====
+# BOLUM 21: Common Cause vs True Cascade Ayrimi
+# Mevcut "cascade" tanimimiz sequential (ayni arac A->B 24s). Ama bu pattern iki sebepten gelebilir:
+#  - True Cascade: A bozulmasi B'yi tetikledi
+#  - Common Cause: Disaridan ortak sebep (yol, hava, surus) hem A hem B'yi etkiledi
+# Test: Ayni zaman + ayni HAT + farkli arac + ayni sistem arızasi = common cause sinyali
+
+from datetime import timedelta
+
+# 1. AYNI SAAT + AYNI HAT + FARKLI ARAC + AYNI SISTEM CLUSTER
+# Saatlik bin'le grupla
+df_cc = df.copy()
+df_cc['saat_bin'] = df_cc['OLAYTARIHI'].dt.floor('h')  # saatlik kova
+
+# (saat_bin, HATKODU, ARIZAUSTKODTANIM) gruplari
+grup_say = df_cc.groupby(['saat_bin', 'HATKODU', 'ARIZAUSTKODTANIM']).agg(
+    n_ariza=('KAPINO', 'count'),
+    n_farkli_arac=('KAPINO', 'nunique'),
+).reset_index()
+
+# Common 
+  [STREAM] === COMMON CAUSE TESPITI ===
+Toplam (saat, hat, sistem) grup: 56,930
+Common cause cluster (>=2 farkli arac): 1,407
+Bu cluster'lardaki toplam ariza: 2,967
+
+=== EN BUYUK COMMON CAUSE CLUSTERLARI ===
+           saat_bin HATKODU            ARIZAUSTKODTANIM  n_ariza  n_farkli_arac
+2025-04-21 17:00:00    34AS     KLİMA SİSTEMİ ARIZALARI        5              5
+2025-02-27 17:00:00     34G              KAPI ARIZALARI        4              4
+2025-03-14 14:00:00    34BZ     KLİMA SİSTEMİ ARIZALARI        4              4
+2025-03-15 06:00:00     34G     SOĞUTMA SİSTEMİ ARIZASI        4              4
+2025-05-23 17:00:00    34AS     KLİMA SİSTEMİ ARIZALARI        4              4
+2025-05-24 14:00:00    34BZ     KLİMA SİSTEMİ ARIZALARI        4              4
+2025-06-20 12:00:00    34BZ     KLİMA SİSTEMİ ARIZALARI        4              4
+2025-06-24 16:00:00    34BZ     KLİMA SİSTEMİ ARIZALARI        4              4
+2025-06-24 16:00:00    34BZ OTOMATİK ŞANZIMAN ARIZALARI        4              4
+2025-06-25 17:00:00    34BZ     KLİMA SİSTEMİ ARIZALARI        4              4
+
+=== CASCADE ARIZALARININ COMMON CAUSE ILE OVERLAP ORANI ===
+Cascade ariza toplam: 8,727
+Common cause overlap (cascade + ayni hat-saat-sistem cluster): 534 (6.1%)
+
+=== YORUM (veriye gore) ===
+%6.1 common cause overlap < %10
+-> Cascade'lerimiz BUYUK OLCUDE TRUE SEQUENTIAL (gercek tetikleme)
+   ML feature'lar dogru yorumlanir.
+
+=== EN COK COMMON CAUSE PATTERN GOSTEREN SISTEMLER ===
+                               cluster_n
+===== CELL 42 [markdown] =====
+---
+
+## 22. Coğrafi-Zamansal Cluster Testi
+Common cause için coğrafi test: ENLEM/BOYLAM koordinatlarıyla ~1 km grid + 1 saat penceresi.
+Birden fazla araç aynı bölgede aynı saat içinde aynı sistemde arızalandıysa → dış etki olabilir.
+===== CELL 43 [code] =====
+# BOLUM 22: Cografi-Zamansal Cluster Testi
+# Common cause icin alternatif test: kucuk cografi alan + kucuk zaman penceresi icinde
+# birden cok arac AYNI sistem arızasi yapti mi?
+# ENLEM/BOYLAM kullanarak coğrafi cluster tespit edelim.
+
+from math import radians, sin, cos, sqrt, atan2
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+
+# ENLEM/BOYLAM ariza_model.csv'de yok, ariza_temiz.csv'de var
+df_temiz = pd.read_csv('../panel_data/temiz_veri/ariza_temiz.csv', low_memory=False)
+df_temiz['OLAYTARIHI'] = pd.to_datetime(df_temiz['OLAYTARIHI'], format='mixed')
+
+# ENLEM/BOYLAM string olabilir, nume
+  [STREAM] Cografi koordinati olan ariza: 58,990 / 59,050
+
+=== COGRAFI-ZAMANSAL CLUSTER (1 saat + ~1 km + ayni sistem) ===
+Toplam grup: 58,282
+Common cluster (>=2 farkli arac): 647
+Bu cluster'lardaki toplam ariza: 1,344
+
+Cascade icinde cografi-zamansal common overlap: 241 (2.7%)
+
+=== EN BUYUK COGRAFI-ZAMANSAL CLUSTERLARI ===
+           saat_bin  lat_grid  lon_grid           ARIZAUSTKODTANIM  n_ariza  n_farkli_arac
+2025-06-26 12:00:00     41.02     28.62    KLİMA SİSTEMİ ARIZALARI        5              5
+2025-01-15 10:00:00     41.02     28.63             KAPI ARIZALARI        4              4
+2025-03-26 06:00:00     40.99     29.04 ELEKTRİK SİSTEMİ ARIZALARI        4              4
+2025-05-23 13:00:00     40.99     29.04    SOĞUTMA SİSTEMİ ARIZASI        4              4
+2025-06-19 16:00:00     40.99     29.04    KLİMA SİSTEMİ ARIZALARI        4              4
+2025-01-15 19:00:00     40.99     29.04             KAPI ARIZALARI        3              3
+2025-01-24 06:00:00     40.99     29.04 ELEKTRİK SİSTEMİ ARIZALARI        3              3
+2025-01-28 08:00:00     41.02     28.63          KAROSER ARIZALARI        3              3
+2025-02-07 17:00:00     41.02     28.63             ISITMA SİSTEMİ        3              3
+2025-02-09 07:00:00     41.07     29.01    SOĞUTMA SİSTEMİ ARIZASI        3              3
+
+=== YORUM ===
+%2.7 cografi-zamansal common overlap < %10
+-> Cascade'ler cografi olarak izole (true sequential dominant)
+
+=== IKI TEST OZETI ===
+Hat bazli common cause (Bolum 21):    

@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>UKOME · 2025 Q3 V6.5 Tahminleme</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--primary:#0ea5e9;--danger:#ef4444;--success:#22c55e;--warning:#f59e0b;--dark:#0b0f19;--card:#1e293b;--border:#334155;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--dark);color:#e0e6ed;font-family:'Segoe UI',sans-serif;min-height:100vh;padding:18px 26px;}
+
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:14px;}
+.page-header h1{font-size:22px;font-weight:900;color:#fff;}
+.page-header p{font-size:12px;color:#94a3b8;margin-top:5px;}
+.back-btn{padding:8px 14px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:700;transition:.15s;}
+.back-btn:hover{background:var(--primary);color:#fff;}
+
+.metric-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.badge{padding:4px 10px;border-radius:5px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border:1px solid;}
+.badge b{font-family:'Consolas',monospace;font-weight:900;margin-left:4px;}
+.badge.auc{color:#22c55e;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35);}
+.badge.psi{color:#7dd3fc;background:rgba(125,211,252,.10);border-color:rgba(125,211,252,.35);}
+.badge.ece{color:#c4b5fd;background:rgba(168,85,247,.12);border-color:rgba(168,85,247,.35);}
+.badge.f1 {color:#fb923c;background:rgba(251,146,60,.12);border-color:rgba(251,146,60,.35);}
+
+.tab-nav{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border);}
+.tab-btn{padding:11px 22px;cursor:pointer;font-size:13px;font-weight:700;color:#94a3b8;border-bottom:3px solid transparent;transition:.15s;background:transparent;border-top:none;border-left:none;border-right:none;}
+.tab-btn:hover{color:#fff;}
+.tab-btn.active{color:#0ea5e9;border-bottom-color:#0ea5e9;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:20px;}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-top:3px solid #475569;border-radius:10px;padding:14px 16px;}
+.kpi-card .kpi-label{font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
+.kpi-card .kpi-val{font-size:28px;font-weight:900;color:#fff;margin-top:6px;font-variant-numeric:tabular-nums;}
+.kpi-card .kpi-sub{font-size:10px;color:#64748b;margin-top:3px;}
+.kpi-kritik{border-top-color:#ef4444;} .kpi-kritik .kpi-val{color:#ef4444;}
+.kpi-yuksek{border-top-color:#f59e0b;} .kpi-yuksek .kpi-val{color:#fb923c;}
+.kpi-orta  {border-top-color:#facc15;} .kpi-orta .kpi-val  {color:#fcd34d;}
+.kpi-dusuk {border-top-color:#22c55e;} .kpi-dusuk .kpi-val {color:#22c55e;}
+.kpi-uyari {border-top-color:#a855f7;} .kpi-uyari .kpi-val {color:#c4b5fd;}
+.kpi-yuks{border-top-color:#ef4444;} .kpi-yuks .kpi-val{color:#ef4444;}
+.kpi-dus {border-top-color:#22c55e;} .kpi-dus .kpi-val {color:#22c55e;}
+.kpi-sabit{border-top-color:#94a3b8;}
+
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;height:350px;display:flex;flex-direction:column;}
+.chart-card.full-width{grid-column:span 2;height:340px;}
+.chart-title{font-size:13px;font-weight:700;color:#fff;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;}
+.canvas-wrap{flex:1;position:relative;min-height:0;}
+.chart-card canvas{max-height:100%;}
+
+.section-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px;}
+.section-title{font-size:14px;font-weight:700;color:#FFD700;margin-bottom:14px;}
+.kpi-info{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#334155;color:#94a3b8;font-size:10px;font-weight:700;font-style:italic;cursor:help;user-select:none;margin-left:6px;transition:.15s;}
+.kpi-info:hover{background:#0ea5e9;color:#fff;}
+.neden-grid{display:grid;grid-template-columns:1fr;gap:7px;margin:14px 0;}
+.neden-item{display:flex;gap:10px;padding:9px 12px;background:#0f172a;border-left:3px solid #475569;border-radius:5px;align-items:flex-start;}
+.neden-item.yuksek{border-left-color:#ef4444;}
+.neden-item.orta{border-left-color:#f59e0b;}
+.neden-item.dusuk{border-left-color:#22c55e;}
+.neden-item.manuel{border-left-color:#a855f7;}
+.neden-item.bilgi{border-left-color:#0ea5e9;}
+.neden-ikon{font-size:14px;width:22px;text-align:center;}
+.neden-icerik{flex:1;}
+.neden-etiket{font-size:12px;color:#fff;font-weight:700;}
+.neden-aciklama{font-size:11px;color:#94a3b8;margin-top:2px;}
+.h1-gecmis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0;}
+.h1-stat{padding:8px 10px;background:#0f172a;border-radius:5px;text-align:center;}
+.h1-stat .v{font-size:18px;font-weight:900;color:#fff;}
+.h1-stat .l{font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:.4px;margin-top:2px;}
+.h1-bakim{padding:10px 12px;background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;border-radius:5px;font-size:11px;color:#fbbf24;margin-top:8px;}
+
+.filter-bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.filter-bar input,.filter-bar select{padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0f172a;color:#e0e6ed;font-size:12px;font-weight:600;font-family:inherit;outline:none;}
+.filter-bar input{width:160px;text-transform:uppercase;}
+.filter-bar input:focus,.filter-bar select:focus{border-color:#0ea5e9;}
+.filter-bar button{padding:8px 14px;border-radius:5px;border:1px solid var(--border);background:#0f172a;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:700;transition:.15s;}
+.filter-bar button.active,.filter-bar button.primary{background:var(--primary);color:#fff;border-color:var(--primary);}
+.filter-bar button:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+.filter-meta{margin-left:auto;color:#64748b;font-size:11px;font-weight:700;}
+
+.data-tablo{width:100%;border-collapse:collapse;font-size:12px;}
+.data-tablo th{background:#0f172a;padding:8px 10px;text-align:left;color:#94a3b8;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:1;}
+.data-tablo td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:#e0e6ed;}
+.data-tablo tr:hover td{background:rgba(255,255,255,.03);cursor:pointer;}
+.data-tablo th.right,.data-tablo td.right{text-align:right;font-variant-numeric:tabular-nums;}
+.data-tablo .id{font-family:'Consolas',monospace;font-weight:700;color:#7dd3fc;}
+
+.tier{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;letter-spacing:.3px;border:1px solid;}
+.tier .d{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.tier-k{color:#ef4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);}
+.tier-y{color:#fb923c;background:rgba(251,146,60,.12);border-color:rgba(251,146,60,.35);}
+.tier-o{color:#fcd34d;background:rgba(252,211,77,.10);border-color:rgba(252,211,77,.35);}
+.tier-d{color:#22c55e;background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.35);}
+
+.yon-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;}
+.yon-yukseldi{background:rgba(239,68,68,.15);color:#ef4444;}
+.yon-dustu{background:rgba(34,197,94,.15);color:#22c55e;}
+.yon-sabit{background:rgba(148,163,184,.15);color:#94a3b8;}
+
+.cluster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;}
+.cluster-box{background:#0f172a;border:1px solid var(--border);border-top:3px solid #a855f7;border-radius:8px;padding:14px;}
+.cluster-box .c-title{font-size:12px;font-weight:700;color:#fff;}
+.cluster-box .c-count{font-size:22px;font-weight:900;color:#c4b5fd;margin:4px 0;}
+.cluster-box .c-type{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:8px;}
+.cluster-box .c-desc{font-size:11px;color:#94a3b8;line-height:1.5;margin-bottom:8px;}
+.cluster-box .c-oneri{font-size:11px;color:#f59e0b;padding:7px 10px;background:rgba(245,158,11,.08);border-left:2px solid #f59e0b;border-radius:4px;}
+
+.gecis-tablo{width:100%;border-collapse:collapse;font-size:11px;}
+.gecis-tablo th,.gecis-tablo td{padding:8px 10px;text-align:center;border:1px solid rgba(255,255,255,.05);font-weight:700;}
+.gecis-tablo thead th{background:#0f172a;color:#94a3b8;font-size:10px;text-transform:uppercase;}
+.gecis-tablo tbody th{background:#0f172a;color:#94a3b8;font-size:10px;text-align:left;text-transform:uppercase;}
+.gecis-cell{font-variant-numeric:tabular-nums;color:#fff;}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;width:780px;max-width:95vw;max-height:88vh;overflow:auto;padding:22px;position:relative;}
+.modal h3{font-size:16px;color:#fff;margin-bottom:16px;}
+.modal .close-btn{position:absolute;top:14px;right:18px;background:none;border:0;color:#94a3b8;font-size:22px;cursor:pointer;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;margin-bottom:16px;}
+.modal-grid .row{padding:8px 11px;background:#0f172a;border-radius:6px;}
+.modal-grid .row .lbl{color:#64748b;font-size:9px;text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
+.modal-grid .row .val{color:#fff;font-weight:700;font-size:13px;margin-top:3px;}
+.uyari-banner{margin-top:10px;padding:10px 14px;background:rgba(168,85,247,.08);border-left:3px solid #a855f7;border-radius:5px;font-size:11px;color:#c4b5fd;display:none;}
+
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr);}.chart-grid{grid-template-columns:1fr;}.chart-card.full-width{grid-column:span 1;}}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>🤖 2025 Q3 Tahminleme — V6.5</h1>
+    <p>Q1 (Oca-Mar 2025) features → Q2 (Nis-Haz 2025) target öğrenildi · Q2 → Q3 inference + yaz mevsim çarpanları · Platt kalibrasyon</p>
+    <div class="metric-badges">
+      <span class="badge auc">Test AUC <b id="bd-auc">—</b></span>
+      <span class="badge psi">PSI <b id="bd-psi">—</b></span>
+      <span class="badge ece">ECE <b id="bd-ece">—</b></span>
+      <span class="badge f1">F1 <b id="bd-f1">—</b></span>
+    </div>
+  </div>
+  <a href="/" class="back-btn">← Ana Sayfa</a>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="q3" onclick="switchTab('q3')">📊 Q3 Tahminleme</button>
+  <button class="tab-btn" data-tab="kars" onclick="switchTab('kars')">🔄 H1 vs Q3 Karşılaştırma</button>
+  <button class="tab-btn" data-tab="testler" onclick="switchTab('testler')">🔬 Model Test Sonuçları</button>
+</div>
+
+<!-- ═══════════ Q3 TAHMİNLEME TAB ═══════════ -->
+<div class="tab-content active" id="tab-q3">
+  <div class="kpi-row">
+    <div class="kpi-card" title="V6.5 modelinin Q3 (Tem-Eyl 2025) tahmini yaptığı toplam araç sayısı"><div class="kpi-label">📊 Toplam Araç</div><div class="kpi-val" id="kpi-toplam">—</div><div class="kpi-sub">Q3 tahmin yapılan</div></div>
+    <div class="kpi-card kpi-kritik" title="Q3'te 3+ ciddi arıza yapma olasılığı q85 üstü olan araçlar — proaktif bakım öncelikli"><div class="kpi-label">🔴 KRİTİK</div><div class="kpi-val" id="kpi-kritik">—</div><div class="kpi-sub">q85+ olasılık</div></div>
+    <div class="kpi-card kpi-yuksek" title="Q3'te 3+ ciddi arıza olasılığı q60-q85 — yakın takip"><div class="kpi-label">🟠 YÜKSEK</div><div class="kpi-val" id="kpi-yuksek">—</div><div class="kpi-sub">q60-q85</div></div>
+    <div class="kpi-card kpi-orta" title="Q3 olasılık q30-q60 — normal rutinde tutulur"><div class="kpi-label">🟡 ORTA</div><div class="kpi-val" id="kpi-orta">—</div><div class="kpi-sub">q30-q60</div></div>
+    <div class="kpi-card kpi-dusuk" title="Q3 olasılık q30 altı — düşük risk, rutin bakım yeterli"><div class="kpi-label">🟢 DÜŞÜK</div><div class="kpi-val" id="kpi-dusuk">—</div><div class="kpi-sub">q30 altı</div></div>
+    <div class="kpi-card kpi-uyari" title="Ground truth audit'te tespit edilen 3 cluster (BMC/Mercedes/Yunus) için manuel kontrol önerilen araç sayısı"><div class="kpi-label">⚠️ MANUEL</div><div class="kpi-val" id="kpi-uyari">—</div><div class="kpi-sub">cluster uyarısı</div></div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Tier Dağılımı <span class="kpi-info" title="3.508 aracın V6.5 modelinin verdiği risk sınıflandırması. KRİTİK = q85+ olasılık, YÜKSEK = q60-q85, ORTA = q30-q60, DÜŞÜK = q30 altı. Eşikler Q1 hold-out validasyondan kalibre edildi.">i</span></div>
+      <div class="canvas-wrap"><canvas id="chart-tier-pie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Garaj Bazlı Tier (Top 15) <span class="kpi-info" title="KRİTİK + YÜKSEK toplamı en fazla olan 15 garaj. Stacked bar her garajın araç havuzundaki tier dağılımını gösterir — operasyonel olarak bakım yoğunluğu nereye odaklanmalı sorusuna cevap verir.">i</span></div>
+      <div class="canvas-wrap"><canvas id="chart-garaj-tier"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Marka Bazlı Tier <span class="kpi-info" title="Marka × tier dağılımı. Garaj-marka-lift feature'ı modelin en önemli sinyallerinden biri — bazı marka/garaj kombinasyonları sistematik olarak daha yüksek risk taşıyor.">i</span></div>
+      <div class="canvas-wrap"><canvas id="chart-marka-tier"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Yaş × Ortalama Risk <span class="kpi-info" title="Her yaş için ortalama Q3 olasılığı (%). Yaş 10-12 maksimum risk yaşı — bu beklendik (Q1 verisinden öğrenilen survivorship bias). Yaş 16+ daha düşük çünkü hayatta kalan araçlar daha sağlam.">i</span></div>
+      <div class="canvas-wrap"><canvas id="chart-yas-risk"></canvas></div>
+    </div>
+    <div class="chart-card full-width">
+      <div class="chart-title">Top 30 KRİTİK Araç — Q3 Olasılık (Platt Kalibre) <span class="kpi-info" title="En yüksek Q3 ciddi arıza olasılığına sahip 30 araç. Platt kalibre = model çıkışı gerçek olasılığa kalibre edilmiş (ECE 0.035). KAPINO'ya tıklayarak detay görebilirsiniz. Tooltip'te garaj/marka/yaş görünür.">i</span></div>
+      <div class="canvas-wrap"><canvas id="chart-top-kritik"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">⚠️ Operasyonel Cluster Uyarıları</div>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">Ground truth audit ile tespit edilen 3 sistematik bias cluster'ı — modelin tahminine ek olarak insan kontrolü önerilir.</p>
+    <div class="cluster-grid" id="cluster-grid"></div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">📋 Araç Tier Listesi</div>
+    <div class="filter-bar">
+      <input id="f-kapino" placeholder="KAPINO" autocomplete="off"/>
+      <select id="f-tier"><option value="">Tüm tier</option><option value="KRİTİK">KRİTİK</option><option value="YÜKSEK">YÜKSEK</option><option value="ORTA">ORTA</option><option value="DÜŞÜK">DÜŞÜK</option></select>
+      <select id="f-garaj"><option value="">Tüm garaj</option></select>
+      <select id="f-marka"><option value="">Tüm marka</option></select>
+      <button id="btn-uyari" onclick="toggleUyari()">⚠️ Sadece uyarılılar</button>
+      <button class="primary" onclick="filtreUygula()">Filtrele</button>
+      <span class="filter-meta" id="tablo-bilgi">—</span>
+    </div>
+    <div style="max-height:520px;overflow:auto;border-radius:6px;">
+      <table class="data-tablo">
+        <thead>
+          <tr><th>KAPINO</th><th>Garaj</th><th>Marka</th><th>Model</th><th class="right">Yaş</th><th>Tier</th><th class="right">Olasılık</th><th class="right">Kalibre</th><th>Uyarı</th></tr>
+        </thead>
+        <tbody id="arac-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ H1 vs Q3 KARŞILAŞTIRMA TAB ═══════════ -->
+<div class="tab-content" id="tab-kars">
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+    <div class="kpi-card kpi-yuks"><div class="kpi-label">🔼 RİSKİ ARTAN</div><div class="kpi-val" id="k-yuks">—</div><div class="kpi-sub">H1'e göre tier yükseldi</div></div>
+    <div class="kpi-card kpi-dus"><div class="kpi-label">🔽 RİSKİ AZALAN</div><div class="kpi-val" id="k-dus">—</div><div class="kpi-sub">H1'e göre tier düştü</div></div>
+    <div class="kpi-card kpi-sabit"><div class="kpi-label">⏸ SABİT</div><div class="kpi-val" id="k-sabit">—</div><div class="kpi-sub">Tier aynı</div></div>
+    <div class="kpi-card"><div class="kpi-label">🔄 TOPLAM EŞLEŞEN</div><div class="kpi-val" id="k-toplam">—</div><div class="kpi-sub">H1 ∩ Q3 araç</div></div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">H1 → Q3 Tier Geçiş Matrisi <span style="font-size:10px;font-weight:400;color:#64748b;">(Satır: H1, Sütun: Q3)</span></div>
+      <div id="gecis-matris-wrap" style="overflow:auto;flex:1;display:flex;align-items:center;"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sebep Dağılımı — Q3'te Değişim Nedenleri</div>
+      <div class="canvas-wrap"><canvas id="chart-sebep"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔼 En Çok Yükselen 10 Araç (Olasılık Farkı)</div>
+      <div class="canvas-wrap"><canvas id="chart-yukselen"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔽 En Çok Düşen 10 Araç</div>
+      <div class="canvas-wrap"><canvas id="chart-dusen"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">📋 Detaylı Karşılaştırma — Araç Bazında H1 ↔ Q3 Skorları</div>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">H1 skoru: 2025-H1 retroaktif operasyonel ölçüm (smart_maintenance) · Q3 skoru: V6.5 ileri tahmin (Tem-Eyl 2025). Açıklama sütunu, modelin neden farklı bir skor verdiğine dair sinyalleri özetler.</p>
+    <div class="filter-bar">
+      <input id="kf-kapino" placeholder="KAPINO" autocomplete="off"/>
+      <select id="kf-yon"><option value="">Tüm yön</option><option value="yukseldi">🔼 Yükseldi</option><option value="dustu">🔽 Düştü</option><option value="sabit">⏸ Sabit</option></select>
+      <select id="kf-h1-tier"><option value="">Tüm H1 tier</option><option value="KRITIK">KRİTİK</option><option value="YUKSEK">YÜKSEK</option><option value="ORTA">ORTA</option><option value="DUSUK">DÜŞÜK</option></select>
+      <select id="kf-q3-tier"><option value="">Tüm Q3 tier</option><option value="KRİTİK">KRİTİK</option><option value="YÜKSEK">YÜKSEK</option><option value="ORTA">ORTA</option><option value="DÜŞÜK">DÜŞÜK</option></select>
+      <button class="primary" onclick="karsFiltre()">Filtrele</button>
+      <span class="filter-meta" id="kars-bilgi">—</span>
+    </div>
+    <div style="max-height:560px;overflow:auto;border-radius:6px;">
+      <table class="data-tablo">
+        <thead>
+          <tr><th>KAPINO</th><th>Garaj</th><th>Marka</th><th class="right">Yaş</th><th>H1 Tier</th><th>Q3 Tier</th><th class="right">H1 Olasılık</th><th class="right">Q3 Olasılık</th><th class="right">Fark</th><th>Yön</th><th>Açıklama</th></tr>
+        </thead>
+        <tbody id="kars-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TEST SONUÇLARI TAB ═══════════ -->
+<div class="tab-content" id="tab-testler">
+
+  <!-- Üst Özet Banner -->
+  <div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:14px 16px;margin-bottom:14px;font-size:12px;color:#cbd5e1;line-height:1.7;">
+    <b style="color:#c4b5fd;font-size:13px;">🔬 V6.5 Model Doğrulama Pipeline'ı — 57 Test/Kontrol</b>
+    <div style="margin-top:6px;">
+      Modelin <b style="color:#fff;">post-hoc cherry pick</b> ile değil, <b style="color:#fff;">açık kriterlerle</b> seçildiğini kanıtlayan 4 katmanlı validation süreci. Tüm rakamlar
+      <code style="background:#0f172a;padding:1px 5px;border-radius:3px;color:#a78bfa;font-family:monospace;">ml_v6_5_validation_report.json</code>
+      ile bire bir uyumlu — şeffaf, denetlenebilir.
+    </div>
+  </div>
+
+  <!-- KPI Şeridi -->
+  <div class="kpi-row" style="grid-template-columns:repeat(6,1fr);">
+    <div class="kpi-card kpi-kritik" title="Modelin temel başarı testleri (CV + holdout)"><div class="kpi-label">🅰️ Performans</div><div class="kpi-val">5</div><div class="kpi-sub">AUC · AP · F1</div></div>
+    <div class="kpi-card kpi-yuksek" title="PSI · KS · ECE · Brier · Spearman · Genelleme"><div class="kpi-label">🅱️ Stabilite</div><div class="kpi-val">6</div><div class="kpi-sub">Dağılım + kalibrasyon</div></div>
+    <div class="kpi-card kpi-orta" title="Her feature'ın gerçek katkısı"><div class="kpi-label">🅲 Ablation</div><div class="kpi-val">4</div><div class="kpi-sub">Feature etkisi</div></div>
+    <div class="kpi-card kpi-uyari" title="Target tanımı + model alternatifleri"><div class="kpi-label">🅳 Karar</div><div class="kpi-val">8</div><div class="kpi-sub">4 target + 4 model</div></div>
+    <div class="kpi-card kpi-dusuk" title="Tier purity + per-garaj + cluster + lift + threshold"><div class="kpi-label">🅴 Dürüstlük</div><div class="kpi-val">29</div><div class="kpi-sub">Modelin sınırları</div></div>
+    <div class="kpi-card" title="Veri kalite kontrolleri"><div class="kpi-label">🅵 Pipeline</div><div class="kpi-val">5</div><div class="kpi-sub">Veri kalitesi</div></div>
+  </div>
+
+  <!-- 🅰️ PERFORMANS -->
+  <div class="section-card">
+    <div class="section-title">🅰️ Performans Testleri <span class="kpi-info" title="Modelin temel başarı ölçütleri. 5-Fold Cross-Validation OOF + ayrı %20 holdout test seti üzerinde doğrulama.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Test</th><th>Ne yapar</th><th class="right">Sonuç</th><th>Ne işe yarar</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>5-Fold Stratified CV (OOF AUC)</b></td><td>3.508 araç 5 parçaya bölünür, her parça sırayla test seti olur</td><td class="right" style="color:#22c55e;">0.8114</td><td>Şanslı bölünme değil, tutarlı performans kanıtı</td></tr>
+          <tr><td>2</td><td><b>Holdout Test AUC</b></td><td>%20 ayrı tutulan test seti üzerinde tahmin</td><td class="right" style="color:#22c55e;">0.8167</td><td>Modelin hiç görmediği veri üzerinde başarı</td></tr>
+          <tr><td>3</td><td><b>OOF vs Holdout fark</b></td><td>CV ile holdout test arasındaki AUC farkı</td><td class="right" style="color:#22c55e;">0.005</td><td>Çok küçük fark → overfitting yok</td></tr>
+          <tr><td>4</td><td><b>AP (Average Precision)</b></td><td>Precision-Recall eğrisi altındaki alan</td><td class="right" style="color:#22c55e;">0.818</td><td>Dengesiz sınıflarda AUC'tan daha bilgilendirici</td></tr>
+          <tr><td>5</td><td><b>F1 Score (best threshold)</b></td><td>Threshold 0.42'de hesaplanan F1</td><td class="right" style="color:#22c55e;">0.787</td><td>Precision ve Recall dengesi</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅱️ STABİLİTE -->
+  <div class="section-card">
+    <div class="section-title">🅱️ Doğrulama / Stabilite Testleri <span class="kpi-info" title="Modelin dağılım kayması, kalibrasyon ve fold tutarlılığı testleri. Deployment safe olduğunun kanıtları.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Test</th><th>Ne yapar</th><th class="right">Sonuç</th><th>Ne işe yarar</th></tr></thead>
+        <tbody>
+          <tr><td>6</td><td><b>PSI (Q1 train vs Q3 inference)</b></td><td>Train ve inference feature dağılımları arası kayma</td><td class="right" style="color:#22c55e;">0.067</td><td>&lt;0.1 = Q1'de öğrenilen Q3'te geçerli, deployment safe</td></tr>
+          <tr><td>7</td><td><b>KS Test (Q1 vs Q3)</b></td><td>Dağılımların istatistiksel farkı</td><td class="right">0.074<br><span style="font-size:9px;color:#64748b;">pvalue 7.9e-08</span></td><td>Küçük ama anlamlı kayma, operasyonel kabul</td></tr>
+          <tr><td>8</td><td><b>ECE Kalibre</b></td><td>Modelin söylediği olasılık gerçek frekansa ne kadar yakın</td><td class="right" style="color:#22c55e;">0.035<br><span style="font-size:9px;color:#64748b;">ham 0.098</span></td><td>Platt 3× iyileştirdi — %80 dediği gerçekten %80</td></tr>
+          <tr><td>9</td><td><b>Brier Score Kalibre</b></td><td>Olasılık tahmininin gerçeklikten karesel uzaklığı</td><td class="right">0.1729<br><span style="font-size:9px;color:#64748b;">ham 0.183</span></td><td>Kalibrasyon kanıtı</td></tr>
+          <tr><td>10</td><td><b>Fold Stability (Spearman)</b></td><td>5-fold içinde araçların sıralaması ne kadar tutarlı</td><td class="right" style="color:#22c55e;">0.9762</td><td>≈1.0 → model kararlı, farklı fold ile aynı sıralama</td></tr>
+          <tr><td>11</td><td><b>Genelleme Skoru</b></td><td>En zayıf garaj AUC / ortalama garaj AUC</td><td class="right">0.7837</td><td>Kötü garajda bile makul performans</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅲 ABLATION -->
+  <div class="section-card">
+    <div class="section-title">🅲 Ablation Testleri <span class="kpi-info" title="Her feature grubunun gerçek katma değerini ölçtük. 0.73 → 0.82 = ek 17 feature'ın +0.09 etkisi. Şişirme yok kanıtı.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Feature seti</th><th class="right">OOF AUC</th><th class="right">Test AUC</th><th>Yorum</th></tr></thead>
+        <tbody>
+          <tr><td>12</td><td><b>Base 17 (V6.4)</b></td><td class="right">0.808</td><td class="right">0.815</td><td>V6.5'in referans noktası</td></tr>
+          <tr><td>13</td><td><b>V6.5 full (23 feature)</b></td><td class="right" style="color:#22c55e;">0.811</td><td class="right" style="color:#22c55e;">0.817</td><td>✅ <b>Seçilen final model</b></td></tr>
+          <tr><td>14</td><td><b>Yalnız Q1 sistem (6)</b></td><td class="right">0.704</td><td class="right">0.729</td><td>Sistem feature'ları tek başına 0.73 verir</td></tr>
+          <tr><td>15</td><td><b>SHAP top-6</b></td><td class="right">0.813</td><td class="right">0.816</td><td>6 dominant feature 23'e çok yakın → Pareto kanıtı</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,.08);border-left:3px solid #22c55e;border-radius:5px;font-size:11px;color:#86efac;">
+      <b>Sonuç:</b> Feature engineering gerçek katkı sağladı: 0.73 → 0.82 = ek 17 feature'ın +0.09 AUC ekledi. Şişirme yok.
+    </div>
+  </div>
+
+  <!-- 🅳.1 TARGET KARŞILAŞTIRMA -->
+  <div class="section-card">
+    <div class="section-title">🅳-1 Target Karşılaştırma — 4 Alternatif Test Edildi <span class="kpi-info" title="Target tanımının post-hoc cherry pick olmadığını kanıtladık. TARGET_KARSILASTIRMA.ipynb'de açık kriterlerle (C) seçildi.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Alternatif</th><th class="right">Pozitif oran</th><th class="right">Ortalama |r|</th><th>Karar</th></tr></thead>
+        <tbody>
+          <tr><td>16</td><td>MEVCUT (4 kategori geniş)</td><td class="right">%86.3</td><td class="right">0.178</td><td><span style="color:#ef4444;">❌ Çok dengesiz</span></td></tr>
+          <tr><td>17</td><td>(A) V5 dar (2 kategori)</td><td class="right">%66.7</td><td class="right">0.066</td><td><span style="color:#ef4444;">❌ Feature sinyali zayıf</span></td></tr>
+          <tr><td>18</td><td>(B) 3 kategori</td><td class="right">%84.1</td><td class="right">0.186</td><td><span style="color:#ef4444;">❌ Hâlâ dengesiz</span></td></tr>
+          <tr><td>19</td><td><b>(C) Sayı eşiği ≥3</b></td><td class="right" style="color:#22c55e;"><b>%54.0</b></td><td class="right" style="color:#22c55e;"><b>0.221</b></td><td><span style="color:#22c55e;">✅ <b>SEÇİLDİ</b></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅳.2 SWEET SPOT -->
+  <div class="section-card">
+    <div class="section-title">🅳-2 Sweet Spot Kanıtı — 4 Model Elendi <span class="kpi-info" title="V6.5'in rastgele değil, kanıtlanmış sweet spot olduğunu gösterdik. PSI testi feature decision için olmazsa olmaz.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Alternatif</th><th>Hipotez</th><th>Sonuç</th><th>Karar</th></tr></thead>
+        <tbody>
+          <tr><td>20</td><td><b>V6.6</b> (8 feature pruning)</td><td>Zayıf Pearson r'ler atılsın</td><td>PSI 0.067 → <b style="color:#ef4444;">0.48</b></td><td><span style="color:#ef4444;">❌ Elendi</span></td></tr>
+          <tr><td>21</td><td><b>V6.5.1</b> (dur_kalk_index çıkar)</td><td>Yön anomalisi sinyali</td><td>PSI → <b style="color:#ef4444;">1.29</b></td><td><span style="color:#ef4444;">❌ Elendi</span></td></tr>
+          <tr><td>22</td><td><b>V6.5.2</b> (3 trend feature ekle)</td><td>Trend bilgisi eklensin</td><td>PSI → <b style="color:#ef4444;">0.43</b></td><td><span style="color:#ef4444;">❌ Elendi</span></td></tr>
+          <tr><td>23</td><td><b>V6.5.3</b> (garaj_marka_lift çıkar)</td><td>Garaj feature gereksiz mi?</td><td>AUC -0.012, Yunus daha kötü</td><td><span style="color:#ef4444;">❌ Elendi</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅴.1 TIER PURITY -->
+  <div class="section-card">
+    <div class="section-title">🅴-1 Tier Purity (OOF) — Sınıflandırma Kalitesi <span class="kpi-info" title="Modelin her tier için ne kadar doğru sınıflandırdığını gösterir. KRİTİK %85.7 — yüksek güven seviyesi.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Tier</th><th class="right">N (araç)</th><th class="right">Gerçek Pozitif %</th><th>Yorum</th></tr></thead>
+        <tbody>
+          <tr><td>24</td><td><span class="tier tier-k"><span class="d"></span>KRİTİK</span></td><td class="right">897</td><td class="right" style="color:#ef4444;font-weight:700;"><b>%85.7</b></td><td>KRİTİK dediğinin %85.7'si gerçek pozitif</td></tr>
+          <tr><td>25</td><td><span class="tier tier-y"><span class="d"></span>YÜKSEK</span></td><td class="right">278</td><td class="right" style="color:#fb923c;">%70.9</td><td>İkincil odak</td></tr>
+          <tr><td>26</td><td><span class="tier tier-o"><span class="d"></span>ORTA</span></td><td class="right">460</td><td class="right" style="color:#fcd34d;">%51.1</td><td>Belirsiz — yarısı pozitif</td></tr>
+          <tr><td>27</td><td><span class="tier tier-d"><span class="d"></span>DÜŞÜK</span></td><td class="right">1.171</td><td class="right" style="color:#22c55e;">%26.7</td><td>Güvenli ayırma</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅴.2 PER-GARAJ AUC -->
+  <div class="section-card">
+    <div class="section-title">🅴-2 Per-Garaj AUC — Hangi Garajda Güvenilir? <span class="kpi-info" title="Modelin her garajda ne kadar güçlü çalıştığı. Bazı garajlarda zayıflığı modelin KENDİ kabul ettiği nokta — bu garajlar MANUEL kontrol etiketi alır.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Garaj</th><th class="right">AUC</th><th>Yorum</th></tr></thead>
+        <tbody>
+          <tr><td>28</td><td>IKITELLIISLETTIRMEGARAJI2</td><td class="right" style="color:#22c55e;">0.728</td><td>En güvenilir</td></tr>
+          <tr><td>29</td><td>IKITELLIGARAJI</td><td class="right" style="color:#22c55e;">0.717</td><td>İyi</td></tr>
+          <tr><td>30</td><td>Edirnekapı</td><td class="right" style="color:#22c55e;">0.697</td><td>İyi</td></tr>
+          <tr><td>31</td><td>Anadolu</td><td class="right" style="color:#fcd34d;">0.581</td><td>Orta</td></tr>
+          <tr><td>32</td><td>SULTANGAZIGARAJI</td><td class="right" style="color:#fcd34d;">0.561</td><td>Orta</td></tr>
+          <tr><td>33</td><td>Yunus</td><td class="right" style="color:#fb923c;">0.515</td><td>⚠️ Düşük güven</td></tr>
+          <tr><td>34</td><td>Hasanpaşa</td><td class="right" style="color:#fb923c;">0.509</td><td>⚠️ Rastgele yakını</td></tr>
+          <tr><td>35</td><td>Kağıthane</td><td class="right" style="color:#fb923c;">0.506</td><td>⚠️ Düşük</td></tr>
+          <tr><td>36</td><td>KURTKÖY</td><td class="right" style="color:#fb923c;">0.495</td><td>⚠️ Rastgele yakını</td></tr>
+          <tr><td>37</td><td>Şahinkaya</td><td class="right" style="color:#ef4444;">0.468</td><td>⚠️ Düşük</td></tr>
+          <tr><td>38</td><td>Sarıgazi</td><td class="right" style="color:#ef4444;">0.443</td><td>⚠️ En düşük</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅴.3 CLUSTER AUDIT -->
+  <div class="section-card">
+    <div class="section-title">🅴-3 Cluster Audit — Sistematik Bias Kontrolü <span class="kpi-info" title="Modelin BİLMEDİĞİ 3 sistematik hata. Bu araçlar MANUEL etiketle işaretlendi — operasyon ekibi insan kontrolü yapmalı.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Cluster</th><th>Risk Tipi</th><th>Etki</th></tr></thead>
+        <tbody>
+          <tr><td>39</td><td><b>BMC IKITELLI 8 yaş + DÜŞÜK</b></td><td><span style="color:#ef4444;">Sistematik kaçırılma (FN)</span></td><td>Manuel takip — KRİTİK olabilecek araçlar bypass ediliyor</td></tr>
+          <tr><td>40</td><td><b>MERCEDES Edirnekapı 16-17 yaş + KRİTİK</b></td><td><span style="color:#fb923c;">Yanlış alarm (FP)</span></td><td>İnsan doğrulaması — survivorship bias şüphesi</td></tr>
+          <tr><td>41</td><td><b>Yunus / Sarıgazi / Şahinkaya garajları</b></td><td><span style="color:#a855f7;">Düşük per-garaj AUC</span></td><td>KRİTİK/YÜKSEK gözden geçirilmeli</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅴.4 LIFT ANALİZİ -->
+  <div class="section-card">
+    <div class="section-title">🅴-4 Lift Analizi — Operasyonel ROI <span class="kpi-info" title="Random öncelikten ne kadar daha iyi yakalıyoruz? 1.6× lift = bakım önceliğinin operasyonel değeri.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Top %</th><th class="right">Lift</th><th class="right">Gain %</th><th>Yorum</th></tr></thead>
+        <tbody>
+          <tr><td>42</td><td>Top 5%</td><td class="right" style="color:#22c55e;">1.65×</td><td class="right">8.3%</td><td>İlk %5 araçtan %8.3 pozitif yakalandı</td></tr>
+          <tr><td>43</td><td>Top 10%</td><td class="right" style="color:#22c55e;">1.60×</td><td class="right">15.9%</td><td>İlk %10 → %16 pozitif</td></tr>
+          <tr><td>44</td><td>Top 20%</td><td class="right" style="color:#22c55e;">1.62×</td><td class="right">32.3%</td><td>İlk %20 → %32 pozitif</td></tr>
+          <tr><td>45</td><td>Top 30%</td><td class="right" style="color:#22c55e;">1.59×</td><td class="right">47.7%</td><td>İlk %30 → %48 pozitif</td></tr>
+          <tr><td>46</td><td>Top 50%</td><td class="right" style="color:#22c55e;">1.45×</td><td class="right">72.5%</td><td>İlk %50 → %72 pozitif</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,.08);border-left:3px solid #22c55e;border-radius:5px;font-size:11px;color:#86efac;">
+      <b>Sonuç:</b> Random bakım önceliği yerine V6.5 ile 1.6× daha verimli hedefleme — operasyonel ROI kanıtı.
+    </div>
+  </div>
+
+  <!-- 🅴.5 MULTI-THRESHOLD CM -->
+  <div class="section-card">
+    <div class="section-title">🅴-5 Multi-Threshold Confusion Matrix — Eşik Seçim Gerekçesi <span class="kpi-info" title="6 farklı threshold test edildi. F1 maksimumu 0.42'de — bu eşik objektif olarak seçildi, cherry pick değil.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th class="right">Threshold</th><th class="right">Precision</th><th class="right">Recall</th><th class="right">F1</th></tr></thead>
+        <tbody>
+          <tr><td>47</td><td class="right">t=0.30</td><td class="right">0.639</td><td class="right" style="color:#22c55e;"><b>0.942</b></td><td class="right">0.761</td></tr>
+          <tr><td>48</td><td class="right">t=0.40</td><td class="right">0.721</td><td class="right">0.858</td><td class="right">0.783</td></tr>
+          <tr style="background:rgba(255,215,0,.08);"><td>49</td><td class="right" style="color:#FFD700;"><b>t=0.42 ✓</b></td><td class="right">0.742</td><td class="right">0.836</td><td class="right" style="color:#FFD700;"><b>0.787</b></td></tr>
+          <tr><td>50</td><td class="right">t=0.50</td><td class="right">0.776</td><td class="right">0.776</td><td class="right">0.776</td></tr>
+          <tr><td>51</td><td class="right">t=0.60</td><td class="right">0.803</td><td class="right">0.665</td><td class="right">0.727</td></tr>
+          <tr><td>52</td><td class="right">t=0.70</td><td class="right" style="color:#22c55e;"><b>0.830</b></td><td class="right">0.578</td><td class="right">0.681</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🅵 PİPELİNE -->
+  <div class="section-card">
+    <div class="section-title">🅵 Pipeline Kalite Testleri — Veri Bütünlüğü <span class="kpi-info" title="Modele giren veri kalitesi kontrolleri. NaN, multicollinearity, edge case yönetimi.">i</span></div>
+    <div style="overflow-x:auto;">
+      <table class="data-tablo">
+        <thead><tr><th>#</th><th>Test</th><th>Sonuç</th><th>Ne işe yarar</th></tr></thead>
+        <tbody>
+          <tr><td>53</td><td><b>NaN kontrol</b></td><td><span style="color:#22c55e;">23 feature'da 0 NaN</span></td><td>Veri eksikliği yok</td></tr>
+          <tr><td>54</td><td><b>Multicollinearity (V6.5.2 öncesi)</b></td><td>En yüksek r=0.745 (&lt;0.85)</td><td>Feature'lar bağımsız bilgi taşıyor</td></tr>
+          <tr><td>55</td><td><b>Q1 boş araç kontrolü</b></td><td>63 araç (%1.8) Q1'de arıza yapmamış</td><td>Edge case bilinçli yönetildi</td></tr>
+          <tr><td>56</td><td><b>Egim eşleşme</b></td><td>657.507 / 658.866 sefer (%99.8)</td><td>Veri zenginleştirme tam</td></tr>
+          <tr><td>57</td><td><b>YAKITTURU 'Bilinmiyor' düzeltmesi</b></td><td>CNG model → CNG, diğeri → MOTORIN</td><td>Veri temizliği</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Kapanış — Sunum Cümlesi -->
+  <div class="section-card" style="background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(34,197,94,.06));border-color:rgba(14,165,233,.3);">
+    <div class="section-title">🎤 Anahtar Mesaj</div>
+    <p style="font-size:12px;color:#cbd5e1;line-height:1.7;margin-bottom:0;">
+      <b style="color:#FFD700;">4 katmanlı validation pipeline:</b>
+      (1) Performans — 5-fold CV + holdout test,
+      (2) Stabilite — PSI / KS / Spearman / ECE,
+      (3) Ablation — feature gerçek katkı testi,
+      (4) Dürüstlük — per-garaj AUC + cluster audit + tier purity.
+      Bunlara ek <b>4 model alternatifi</b> (V6.6, V6.5.1, V6.5.2, V6.5.3) ve <b>4 target tanımı</b> (A/B/C/MEVCUT) ayrıca test edildi.
+      <br><br>
+      <b style="color:#22c55e;">Toplam 57 ayrı test/kontrol.</b> Hiçbir karar post-hoc cherry pick değil — açık kriterlerle alındı. Tüm rakamlar
+      <code style="background:#0f172a;padding:1px 5px;border-radius:3px;color:#a78bfa;">ml_v6_5_validation_report.json</code>
+      ile bire bir uyumlu, denetlenebilir, şeffaf.
+    </p>
+  </div>
+
+</div>
+<!-- ═══════════ /TEST SONUÇLARI TAB ═══════════ -->
+
+<!-- Araç Detay Modal -->
+<div class="modal-bg" id="arac-modal-bg" onclick="if(event.target===this)kapatModal()">
+  <div class="modal">
+    <button class="close-btn" onclick="kapatModal()">✕</button>
+    <h3 id="modal-title">Araç Detayı</h3>
+    <div class="modal-grid" id="modal-grid"></div>
+    <div id="modal-tier-block"></div>
+    <div id="modal-ek-alan"></div>
+    <div style="font-size:12px;color:#fb923c;font-weight:700;margin:18px 0 6px;display:flex;align-items:center;gap:6px;">🔧 Sistem-Bazlı Tahmin (Top 15) <span class="kpi-info" title="Her arıza sistemi için ayrı olasılık tahmini. Ham = modelin ham çıkışı. Düzeltilmiş = V3 tamir etkisi sonrası (yapılan tamirler nedeniyle olasılık düştü/arttı). Tamir Etkisi = ikisinin farkı.">i</span></div>
+    <div style="max-height:280px;overflow:auto;border-radius:6px;">
+      <table class="data-tablo">
+        <thead><tr><th>Sistem</th><th class="right" title="Modelin ham olasılık çıkışı">Ham %</th><th class="right" title="V3 tamir etkisi düzeltmesi sonrası olasılık">Düzeltilmiş %</th><th class="right" title="Düzeltilmiş - Ham farkı (pp). Pozitif = tamir sonrası risk arttı, negatif = azaldı.">Tamir Etkisi</th></tr></thead>
+        <tbody id="modal-sistem-tbody"></tbody>
+      </table>
+    </div>
+    <div class="uyari-banner" id="modal-uyari"></div>
+  </div>
+</div>
+
+<script>
+// ────────────────────── Tab Switching ──────────────────────
+let _karsYuklendi = false;
+function switchTab(id){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-'+id));
+  if(id === 'kars' && !_karsYuklendi){ loadKarsilastirma(); _karsYuklendi = true; }
+}
+
+function tierClass(t){
+  if(!t) return 'tier-d';
+  const u = t.replace(/İ/g,'I').replace(/Ü/g,'U').replace(/Ş/g,'S').replace('Ö','O').replace('Ç','C').toUpperCase();
+  if(u.startsWith('K')) return 'tier-k';
+  if(u.startsWith('Y')) return 'tier-y';
+  if(u.startsWith('O')) return 'tier-o';
+  return 'tier-d';
+}
+
+// ────────────────────── Q3 Tab ──────────────────────
+let _ch = {};
+async function loadKpi(){
+  const r = await fetch('/api/panel/v6_5/genel_kpi');
+  const d = await r.json();
+  if(d.hata) return console.error(d.hata);
+  document.getElementById('kpi-toplam').textContent = d.toplam_arac.toLocaleString('tr-TR');
+  document.getElementById('kpi-kritik').textContent = d.tier_dagilim.KRITIK;
+  document.getElementById('kpi-yuksek').textContent = d.tier_dagilim.YUKSEK;
+  document.getElementById('kpi-orta').textContent   = d.tier_dagilim.ORTA.toLocaleString('tr-TR');
+  document.getElementById('kpi-dusuk').textContent  = d.tier_dagilim.DUSUK.toLocaleString('tr-TR');
+  document.getElementById('kpi-uyari').textContent  = d.manuel_kontrol_uyari;
+  document.getElementById('bd-auc').textContent = d.model.test_auc.toFixed(4);
+  document.getElementById('bd-psi').textContent = d.model.psi_ham.toFixed(3);
+  document.getElementById('bd-ece').textContent = d.model.ece_kalibre.toFixed(3);
+  document.getElementById('bd-f1').textContent  = d.model.f1.toFixed(3);
+
+  // Tier pie
+  if(_ch.tier) _ch.tier.destroy();
+  _ch.tier = new Chart(document.getElementById('chart-tier-pie'),{
+    type:'doughnut',
+    data:{labels:['KRİTİK','YÜKSEK','ORTA','DÜŞÜK'],
+          datasets:[{data:[d.tier_dagilim.KRITIK,d.tier_dagilim.YUKSEK,d.tier_dagilim.ORTA,d.tier_dagilim.DUSUK],
+                     backgroundColor:['#ef4444','#fb923c','#fcd34d','#22c55e'],borderColor:'#1e293b',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+             plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}
+  });
+}
+
+async function loadCluster(){
+  const r = await fetch('/api/panel/v6_5/cluster_uyari');
+  const d = await r.json();
+  const grid = document.getElementById('cluster-grid');
+  grid.innerHTML = '';
+  for(const c of (d.clusterler || [])){
+    grid.innerHTML += `<div class="cluster-box">
+      <div class="c-title">${c.ad}</div>
+      <div class="c-count">${c.sayi}</div>
+      <div class="c-type">${c.risk_tipi}</div>
+      <div class="c-desc">${c.aciklama}</div>
+      <div class="c-oneri">💡 ${c.oneri}</div>
+    </div>`;
+  }
+}
+
+let _allAraclar = [];
+async function loadFiltreOpts(){
+  const r = await fetch('/api/panel/v6_5/tier_listesi?limit=5000');
+  const d = await r.json();
+  _allAraclar = d.araclar || [];
+  const garajSet = new Set(), markaSet = new Set();
+  for(const a of _allAraclar){ garajSet.add(a.GARAJ); markaSet.add(a.MARKA); }
+  const g = document.getElementById('f-garaj');
+  [...garajSet].sort().forEach(v => g.innerHTML += `<option value="${v}">${v}</option>`);
+  const m = document.getElementById('f-marka');
+  [...markaSet].sort().forEach(v => m.innerHTML += `<option value="${v}">${v}</option>`);
+  // Karşılaştırma sekmesinin filtreleri de aynı listeden
+  loadEkGrafikler(_allAraclar);
+}
+
+function loadEkGrafikler(araclar){
+  // Garaj bazlı tier (top 15)
+  const garajMap = {};
+  for(const a of araclar){
+    const g = a.GARAJ || '—';
+    if(!garajMap[g]) garajMap[g] = {KRITIK:0,YUKSEK:0,ORTA:0,DUSUK:0,toplam:0};
+    const tk = (a.tier||'').replace(/İ/g,'I').replace(/Ü/g,'U').replace(/Ş/g,'S');
+    if(tk === 'KRITIK') garajMap[g].KRITIK++;
+    else if(tk === 'YUKSEK') garajMap[g].YUKSEK++;
+    else if(tk === 'ORTA') garajMap[g].ORTA++;
+    else garajMap[g].DUSUK++;
+    garajMap[g].toplam++;
+  }
+  const garajList = Object.entries(garajMap).map(([g,v]) => ({g,...v}))
+    .sort((a,b) => (b.KRITIK+b.YUKSEK) - (a.KRITIK+a.YUKSEK)).slice(0,15);
+  if(_ch.garaj) _ch.garaj.destroy();
+  _ch.garaj = new Chart(document.getElementById('chart-garaj-tier'),{
+    type:'bar',
+    data:{labels:garajList.map(x=>x.g),
+          datasets:[
+            {label:'KRİTİK',data:garajList.map(x=>x.KRITIK),backgroundColor:'#ef4444',stack:'s'},
+            {label:'YÜKSEK',data:garajList.map(x=>x.YUKSEK),backgroundColor:'#fb923c',stack:'s'},
+            {label:'ORTA',  data:garajList.map(x=>x.ORTA),  backgroundColor:'#fcd34d',stack:'s'},
+            {label:'DÜŞÜK', data:garajList.map(x=>x.DUSUK), backgroundColor:'#22c55e',stack:'s'},
+          ]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+             scales:{x:{stacked:true,ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'}},
+                     y:{stacked:true,ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
+             plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}},position:'bottom'}}}
+  });
+
+  // Marka bazlı tier
+  const markaMap = {};
+  for(const a of araclar){
+    const m = a.MARKA || '—';
+    if(!markaMap[m]) markaMap[m] = {KRITIK:0,YUKSEK:0,ORTA:0,DUSUK:0,toplam:0};
+    const tk = (a.tier||'').replace(/İ/g,'I').replace(/Ü/g,'U').replace(/Ş/g,'S');
+    if(tk === 'KRITIK') markaMap[m].KRITIK++;
+    else if(tk === 'YUKSEK') markaMap[m].YUKSEK++;
+    else if(tk === 'ORTA') markaMap[m].ORTA++;
+    else markaMap[m].DUSUK++;
+    markaMap[m].toplam++;
+  }
+  const markaList = Object.entries(markaMap).map(([m,v])=>({m,...v}))
+    .sort((a,b)=>b.toplam-a.toplam).slice(0,12);
+  if(_ch.marka) _ch.marka.destroy();
+  _ch.marka = new Chart(document.getElementById('chart-marka-tier'),{
+    type:'bar',
+    data:{labels:markaList.map(x=>x.m),
+          datasets:[
+            {label:'KRİTİK',data:markaList.map(x=>x.KRITIK),backgroundColor:'#ef4444',stack:'s'},
+            {label:'YÜKSEK',data:markaList.map(x=>x.YUKSEK),backgroundColor:'#fb923c',stack:'s'},
+            {label:'ORTA',  data:markaList.map(x=>x.ORTA),  backgroundColor:'#fcd34d',stack:'s'},
+            {label:'DÜŞÜK', data:markaList.map(x=>x.DUSUK), backgroundColor:'#22c55e',stack:'s'},
+          ]},
+    options:{responsive:true,maintainAspectRatio:false,
+             scales:{x:{stacked:true,ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}},
+                     y:{stacked:true,ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'}}},
+             plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}},position:'bottom'}}}
+  });
+
+  // Yaş × Risk
+  const yasMap = {};
+  for(const a of araclar){
+    if(a.yas == null) continue;
+    if(!yasMap[a.yas]) yasMap[a.yas] = {sum:0,n:0};
+    yasMap[a.yas].sum += (a.olasilik || 0);
+    yasMap[a.yas].n++;
+  }
+  const yasList = Object.entries(yasMap).map(([y,v])=>({y:+y,avg:v.sum/v.n,n:v.n})).sort((a,b)=>a.y-b.y);
+  if(_ch.yas) _ch.yas.destroy();
+  _ch.yas = new Chart(document.getElementById('chart-yas-risk'),{
+    type:'bar',
+    data:{labels:yasList.map(x=>x.y),
+          datasets:[{label:'Ort. Risk (%)',data:yasList.map(x=>+(x.avg*100).toFixed(1)),
+                     backgroundColor:yasList.map(x => x.avg>0.7?'#ef4444':x.avg>0.5?'#fb923c':x.avg>0.3?'#fcd34d':'#22c55e'),
+                     borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+             scales:{x:{title:{display:true,text:'Yaş',color:'#64748b'},ticks:{color:'#94a3b8'},grid:{display:false}},
+                     y:{ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'}}},
+             plugins:{legend:{display:false}}}
+  });
+
+  // Top 30 KRİTİK
+  const kritikTop = araclar.filter(a => (a.tier||'').replace(/İ/g,'I').replace(/Ü/g,'U').replace(/Ş/g,'S') === 'KRITIK')
+    .sort((a,b)=>b.olasilik-a.olasilik).slice(0,30);
+  if(_ch.topk) _ch.topk.destroy();
+  _ch.topk = new Chart(document.getElementById('chart-top-kritik'),{
+    type:'bar',
+    data:{labels:kritikTop.map(x=>x.KAPINO),
+          datasets:[{label:'Olasılık (%)',data:kritikTop.map(x=>+((x.olasilik_kalibre||x.olasilik)*100).toFixed(1)),
+                     backgroundColor:'#ef4444',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+             scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}},
+                     y:{ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'},max:100}},
+             plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:(ctx)=>{const a=kritikTop[ctx.dataIndex];return `${a.GARAJ} · ${a.MARKA} ${a.MODEL} · Yaş ${a.yas}`;}}}}}
+  });
+}
+
+let _sadeceUyari = false;
+function toggleUyari(){
+  _sadeceUyari = !_sadeceUyari;
+  document.getElementById('btn-uyari').classList.toggle('active', _sadeceUyari);
+  filtreUygula();
+}
+
+async function filtreUygula(){
+  const params = new URLSearchParams({
+    tier: document.getElementById('f-tier').value,
+    garaj: document.getElementById('f-garaj').value,
+    marka: document.getElementById('f-marka').value,
+    kapino: document.getElementById('f-kapino').value,
+    sadece_uyari: _sadeceUyari ? '1' : '',
+    limit: '500',
+  });
+  const r = await fetch('/api/panel/v6_5/tier_listesi?'+params);
+  const d = await r.json();
+  document.getElementById('tablo-bilgi').textContent = `${d.araclar.length} / ${d.toplam.toLocaleString('tr-TR')} araç`;
+  const tb = document.getElementById('arac-tbody');
+  tb.innerHTML = '';
+  for(const a of d.araclar){
+    const tr = document.createElement('tr');
+    tr.onclick = () => aracDetay(a.KAPINO);
+    tr.innerHTML = `
+      <td class="id">${a.KAPINO}</td>
+      <td>${a.GARAJ}</td><td>${a.MARKA}</td>
+      <td style="color:#64748b;font-size:11px;">${a.MODEL}</td>
+      <td class="right">${a.yas ?? '—'}</td>
+      <td><span class="tier ${tierClass(a.tier)}"><span class="d"></span>${a.tier}</span></td>
+      <td class="right">${(a.olasilik*100).toFixed(1)}%</td>
+      <td class="right" style="color:#c4b5fd;">${a.olasilik_kalibre !== null ? (a.olasilik_kalibre*100).toFixed(1)+'%' : '—'}</td>
+      <td>${a.manuel_kontrol ? '<span class="tier" style="color:#c4b5fd;background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.35);"><span class="d"></span>MANUEL</span>' : ''}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+async function aracDetay(kapino){
+  const r = await fetch('/api/panel/v6_5/arac/'+encodeURIComponent(kapino));
+  const d = await r.json();
+  if(d.hata){ alert(d.hata); return; }
+  // Tier farkı kontrolü
+  const tierSira = {DÜŞÜK:0,DUSUK:0,ORTA:1,YÜKSEK:2,YUKSEK:2,KRİTİK:3,KRITIK:3};
+  const hamR = tierSira[d.tier_ham] ?? 0;
+  const duzR = tierSira[d.tier_duzeltilmis] ?? 0;
+  const tierAyni = d.tier_ham === d.tier_duzeltilmis;
+  const tierFark = duzR - hamR;
+  let tierAciklama = '';
+  if(tierAyni){
+    tierAciklama = '<span style="color:#94a3b8;font-size:11px;">Tamir düzeltmesi tier\'i etkilemedi — ham ve V3 düzeltilmiş tier aynı</span>';
+  } else if(tierFark > 0){
+    tierAciklama = `<span style="color:#ef4444;font-size:11px;">🔺 V3 düzeltmesi tier'i <b>${d.tier_ham} → ${d.tier_duzeltilmis}</b> olarak yükseltti. Tamir edilmemiş kronik sistem(ler) var.</span>`;
+  } else {
+    tierAciklama = `<span style="color:#22c55e;font-size:11px;">🔻 V3 düzeltmesi tier'i <b>${d.tier_ham} → ${d.tier_duzeltilmis}</b> olarak indirdi. Yakın zamanda yapılan tamirler sistemleri yumuşattı.</span>`;
+  }
+  document.getElementById('modal-title').innerHTML = `Araç Detayı — <span style="font-family:Consolas,monospace;color:#7dd3fc;">${d.KAPINO}</span> &nbsp; <span class="tier ${tierClass(d.tier_ham)}"><span class="d"></span>${d.tier_ham}</span>${!tierAyni?` <span style="color:#64748b;">→</span> <span class="tier ${tierClass(d.tier_duzeltilmis)}"><span class="d"></span>${d.tier_duzeltilmis}</span>`:''}`;
+  const grid = document.getElementById('modal-grid');
+  grid.innerHTML = `
+    <div class="row"><div class="lbl">Garaj</div><div class="val">${d.GARAJ}</div></div>
+    <div class="row"><div class="lbl">Marka / Model</div><div class="val">${d.MARKA} ${d.MODEL}</div></div>
+    <div class="row"><div class="lbl">Model Yılı / Yaş</div><div class="val">${d.MODELYILI} (${d.yas} yaş)</div></div>
+    <div class="row"><div class="lbl">Araç Cinsi / Yakıt</div><div class="val">${d.ARACCINSI} / ${d.YAKITTURU}</div></div>
+    <div class="row" title="Modelin ham olasılık çıkışı — kalibrasyon ve mevsim çarpanı uygulanmamış"><div class="lbl">Ham Olasılık <span class="kpi-info">i</span></div><div class="val">${(d.olasilik_raw_q3*100).toFixed(1)}%</div></div>
+    <div class="row" title="Platt kalibrasyonu — modelin güvenini gerçek olasılığa ayarlar (ECE 0.035, çok iyi kalibre). Mevsim çarpansız."><div class="lbl">Kalibre Olasılık <span class="kpi-info">i</span></div><div class="val">${(d.olasilik_kalibre_q3*100).toFixed(1)}%</div></div>
+    <div class="row" title="Q3 = yaz dönemi (Tem-Eyl). Yaz aylarında klima/motor/lastik arızaları %22 artıyor. Bu nihai tahmin değeri."><div class="lbl">Q3 Mevsim Olasılık <span class="kpi-info">i</span></div><div class="val" style="color:#FFD700;font-size:15px;">${(d.olasilik*100).toFixed(1)}%</div></div>`;
+  // Tier açıklama bloğu — grid altında ayrı tam genişlikte
+  const tierBlock = document.getElementById('modal-tier-block');
+  tierBlock.innerHTML = `
+    <div style="display:flex;gap:14px;align-items:center;padding:11px 14px;background:#0f172a;border-radius:6px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:.4px;">Ham Tier</div>
+        <span class="tier ${tierClass(d.tier_ham)}"><span class="d"></span>${d.tier_ham}</span>
+        <div style="font-size:9px;color:#64748b;">Genel olasılığa göre</div>
+      </div>
+      <div style="color:#475569;font-size:18px;">→</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:.4px;">V3 Tamir Düzeltilmiş Tier</div>
+        <span class="tier ${tierClass(d.tier_duzeltilmis)}"><span class="d"></span>${d.tier_duzeltilmis}</span>
+        <div style="font-size:9px;color:#64748b;">Tamir geçmişi sonrası</div>
+      </div>
+      <div style="flex:1;min-width:240px;border-left:1px solid #1e293b;padding-left:14px;line-height:1.6;">
+        <div style="font-size:10px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">💡 V3 Tamir Düzeltmesi Nedir?</div>
+        <div style="font-size:11px;color:#94a3b8;">Sistem-bazlı tahminde her sistem (KAPI, MOTOR, FREN…) için ayrı olasılık üretilir. Yakın zamanda tamir edilen sistemler için olasılık aşağı çekilir, kronik sistemler için yukarı. Toplam yeniden hesaplanır.</div>
+        <div style="margin-top:6px;">${tierAciklama}</div>
+      </div>
+    </div>`;
+
+  // Neden bölümü
+  const nedenler = d.nedenler || [];
+  let nedenHTML = '';
+  if(nedenler.length){
+    nedenHTML = `<div style="font-size:12px;color:#FFD700;font-weight:700;margin:18px 0 6px;">🎯 Neden bu tier?</div><div class="neden-grid">`;
+    const ikonMap = {yas:'📅',kronik:'🔁',agir30:'⚠️',cesit:'🧩',h1_ciddi:'📊',cluster:'🚩',sistem:'🔧',mevsim:'☀️'};
+    for(const n of nedenler){
+      nedenHTML += `<div class="neden-item ${n.siddet}">
+        <div class="neden-ikon">${ikonMap[n.tip]||'•'}</div>
+        <div class="neden-icerik">
+          <div class="neden-etiket">${n.etiket}</div>
+          <div class="neden-aciklama">${n.aciklama}</div>
+        </div>
+      </div>`;
+    }
+    nedenHTML += `</div>`;
+  }
+
+  // H1 geçmişi
+  let h1HTML = '';
+  if(d.h1_gecmis){
+    const h = d.h1_gecmis;
+    h1HTML = `<div style="font-size:12px;color:#FFD700;font-weight:700;margin:18px 0 6px;">📜 H1 Operasyonel Geçmişi (Oca-Haz 2025) <span class="kpi-info" title="smart_maintenance.json — Q1+Q2 retroaktif arıza kayıtlarından türetilmiş geçmiş özet">i</span></div>
+      <div class="h1-gecmis-grid">
+        <div class="h1-stat"><div class="v">${h.toplam_ariza}</div><div class="l">Toplam Arıza</div></div>
+        <div class="h1-stat"><div class="v" style="color:${h.ciddi_ariza>=5?'#ef4444':h.ciddi_ariza>=3?'#fb923c':'#fff'};">${h.ciddi_ariza}</div><div class="l">Ciddi Arıza</div></div>
+        <div class="h1-stat"><div class="v" style="color:${h.son_30_agir>=3?'#ef4444':'#fff'};">${h.son_30_agir}</div><div class="l">Son 30 gün — Ağır</div></div>
+        <div class="h1-stat"><div class="v">${h.son_30_arica}</div><div class="l">Son 30 gün — Toplam</div></div>
+        <div class="h1-stat"><div class="v" style="color:${h.kategori_cesit_90>=5?'#fb923c':'#fff'};">${h.kategori_cesit_90}</div><div class="l">90 gün Kategori</div></div>
+        <div class="h1-stat"><div class="v" style="color:#c4b5fd;font-size:13px;">${(h.h1_olasilik*100).toFixed(1)}%</div><div class="l">H1 Olasılık</div></div>
+      </div>`;
+    if(h.tekrarlayan_neden){
+      h1HTML += `<div style="display:flex;gap:14px;padding:9px 12px;background:rgba(239,68,68,.08);border-left:3px solid #ef4444;border-radius:5px;margin-top:8px;font-size:11px;">
+        <span style="color:#ef4444;font-weight:700;">🔁 Tekrarlayan:</span>
+        <span style="color:#e0e6ed;">${h.tekrarlayan_neden}</span></div>`;
+    }
+    if(h.son_ciddi_tarih){
+      h1HTML += `<div style="display:flex;gap:14px;padding:9px 12px;background:#0f172a;border-radius:5px;margin-top:6px;font-size:11px;color:#94a3b8;">
+        <span><b style="color:#fff;">Son ciddi arıza:</b> ${h.son_ciddi_tarih}</span>
+        <span>· ${h.son_ciddi_neden||'—'}</span></div>`;
+    }
+    if(h.bakim_uyarisi){
+      h1HTML += `<div class="h1-bakim">💡 ${h.bakim_uyarisi}</div>`;
+    }
+  } else {
+    h1HTML = `<div style="font-size:11px;color:#64748b;margin:14px 0;padding:10px;background:#0f172a;border-radius:5px;">📭 H1 operasyonel geçmiş kaydı yok (smart_maintenance'te bulunamadı)</div>`;
+  }
+
+  // Modal'a yerleştir
+  const ekAlan = document.getElementById('modal-ek-alan');
+  ekAlan.innerHTML = nedenHTML + h1HTML;
+
+  const sTb = document.getElementById('modal-sistem-tbody');
+  sTb.innerHTML = '';
+  for(const s of (d.sistemler_top15 || [])){
+    const fark = s.duzeltilmis - s.ham;
+    const farkRenk = fark > 0.01 ? '#ef4444' : (fark < -0.01 ? '#22c55e' : '#94a3b8');
+    const farkIkon = fark > 0.01 ? '↑' : (fark < -0.01 ? '↓' : '→');
+    sTb.innerHTML += `<tr><td style="font-size:11px;">${s.sistem}</td><td class="right">${(s.ham*100).toFixed(2)}%</td><td class="right">${(s.duzeltilmis*100).toFixed(2)}%</td><td class="right" style="color:${farkRenk};font-weight:700;">${farkIkon} ${(fark*100).toFixed(2)}pp</td></tr>`;
+  }
+  const u = document.getElementById('modal-uyari');
+  if(d.manuel_kontrol){ u.style.display='block'; u.innerHTML = '⚠️ <b>MANUEL KONTROL UYARISI</b><br>'+d.uyari_sebebi; }
+  else { u.style.display='none'; }
+  document.getElementById('arac-modal-bg').classList.add('open');
+}
+function kapatModal(){ document.getElementById('arac-modal-bg').classList.remove('open'); }
+
+// ────────────────────── Karşılaştırma Tab ──────────────────────
+async function loadKarsilastirma(){
+  await karsFiltre();
+}
+
+async function karsFiltre(){
+  const params = new URLSearchParams({
+    yon: document.getElementById('kf-yon').value,
+    h1_tier: document.getElementById('kf-h1-tier').value,
+    q3_tier: document.getElementById('kf-q3-tier').value,
+    kapino: document.getElementById('kf-kapino').value,
+    limit: '500',
+  });
+  const r = await fetch('/api/panel/v6_5/karsilastirma?'+params);
+  const d = await r.json();
+  if(d.hata){ console.error(d.hata); return; }
+
+  // KPI
+  document.getElementById('k-yuks').textContent  = d.kpi.yukseldi.toLocaleString('tr-TR');
+  document.getElementById('k-dus').textContent   = d.kpi.dustu.toLocaleString('tr-TR');
+  document.getElementById('k-sabit').textContent = d.kpi.sabit.toLocaleString('tr-TR');
+  document.getElementById('k-toplam').textContent = d.toplam_eslesen.toLocaleString('tr-TR');
+  document.getElementById('kars-bilgi').textContent = `${d.gosterilen} / ${d.toplam_eslesen.toLocaleString('tr-TR')} araç`;
+
+  // Geçiş matrisi
+  const gm = d.gecis_matrisi;
+  const maxVal = Math.max(...gm.matris.flat()) || 1;
+  let html = '<table class="gecis-tablo"><thead><tr><th></th>';
+  gm.sutun_etiketleri.forEach(c => html += `<th>${c}</th>`);
+  html += '</tr></thead><tbody>';
+  gm.matris.forEach((row, ri) => {
+    html += `<tr><th>${gm.satir_etiketleri[ri]}</th>`;
+    row.forEach((v, ci) => {
+      const opa = v / maxVal;
+      const isDiag = ri === ci;
+      const isUp = ci > ri, isDown = ci < ri;
+      const bg = isDiag ? `rgba(148,163,184,${opa*.4})`
+              : isUp ? `rgba(239,68,68,${opa*.5})`
+              : `rgba(34,197,94,${opa*.5})`;
+      html += `<td class="gecis-cell" style="background:${bg};color:${v>0?'#fff':'#475569'};">${v}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('gecis-matris-wrap').innerHTML = html;
+
+  // Sebep dağılımı
+  if(_ch.sebep) _ch.sebep.destroy();
+  const sebepler = d.sebep_dagilim || [];
+  _ch.sebep = new Chart(document.getElementById('chart-sebep'),{
+    type:'bar',
+    data:{labels:sebepler.map(x=>x.sebep),
+          datasets:[{label:'Araç sayısı',data:sebepler.map(x=>x.sayi),
+                     backgroundColor:'#a855f7',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+             scales:{x:{ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'}},
+                     y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
+             plugins:{legend:{display:false}}}
+  });
+
+  // Yükselen 10
+  if(_ch.yuks) _ch.yuks.destroy();
+  _ch.yuks = new Chart(document.getElementById('chart-yukselen'),{
+    type:'bar',
+    data:{labels:(d.en_yukselen||[]).map(x=>x.KAPINO),
+          datasets:[
+            {label:'H1',data:(d.en_yukselen||[]).map(x=>+(x.h1_olasilik*100).toFixed(1)),backgroundColor:'#94a3b8'},
+            {label:'Q3',data:(d.en_yukselen||[]).map(x=>+(x.q3_olasilik*100).toFixed(1)),backgroundColor:'#ef4444'},
+          ]},
+    options:{responsive:true,maintainAspectRatio:false,
+             scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}},
+                     y:{ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'},max:100}},
+             plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}},position:'bottom'},
+                      tooltip:{callbacks:{afterLabel:(ctx)=>{const a=(d.en_yukselen||[])[ctx.dataIndex];return a?a.sebep:'';}}}}}
+  });
+
+  // Düşen 10
+  if(_ch.dus) _ch.dus.destroy();
+  _ch.dus = new Chart(document.getElementById('chart-dusen'),{
+    type:'bar',
+    data:{labels:(d.en_dusen||[]).map(x=>x.KAPINO),
+          datasets:[
+            {label:'H1',data:(d.en_dusen||[]).map(x=>+(x.h1_olasilik*100).toFixed(1)),backgroundColor:'#94a3b8'},
+            {label:'Q3',data:(d.en_dusen||[]).map(x=>+(x.q3_olasilik*100).toFixed(1)),backgroundColor:'#22c55e'},
+          ]},
+    options:{responsive:true,maintainAspectRatio:false,
+             scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}},
+                     y:{ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,.04)'},max:100}},
+             plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}},position:'bottom'},
+                      tooltip:{callbacks:{afterLabel:(ctx)=>{const a=(d.en_dusen||[])[ctx.dataIndex];return a?a.sebep:'';}}}}}
+  });
+
+  // Tablo
+  const tb = document.getElementById('kars-tbody');
+  tb.innerHTML = '';
+  for(const a of (d.araclar||[])){
+    const yonClass = 'yon-'+a.yon;
+    const yonLbl = a.yon==='yukseldi'?'🔼 YÜKSELDİ':a.yon==='dustu'?'🔽 DÜŞTÜ':'⏸ SABİT';
+    const farkRenk = a.fark_olasilik > 0 ? '#ef4444' : a.fark_olasilik < 0 ? '#22c55e' : '#94a3b8';
+    const farkIkon = a.fark_olasilik > 0 ? '↑' : a.fark_olasilik < 0 ? '↓' : '→';
+    const tr = document.createElement('tr');
+    tr.onclick = () => aracDetay(a.KAPINO);
+    tr.innerHTML = `
+      <td class="id">${a.KAPINO}</td>
+      <td style="font-size:11px;">${a.GARAJ}</td>
+      <td>${a.MARKA}</td>
+      <td class="right">${a.yas ?? '—'}</td>
+      <td><span class="tier ${tierClass(a.h1_tier)}"><span class="d"></span>${a.h1_tier}</span></td>
+      <td><span class="tier ${tierClass(a.q3_tier)}"><span class="d"></span>${a.q3_tier}</span></td>
+      <td class="right">${(a.h1_olasilik*100).toFixed(1)}%</td>
+      <td class="right">${(a.q3_olasilik*100).toFixed(1)}%</td>
+      <td class="right" style="color:${farkRenk};font-weight:700;">${farkIkon} ${(a.fark_olasilik*100).toFixed(1)}pp</td>
+      <td><span class="yon-badge ${yonClass}">${yonLbl}</span></td>
+      <td style="font-size:11px;color:#94a3b8;max-width:280px;">${a.sebep}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+// ────────────────────── Init ──────────────────────
+(async function init(){
+  await Promise.all([loadKpi(), loadCluster(), loadFiltreOpts()]);
+  filtreUygula();
+})();
+</script>
+</body>
+</html>

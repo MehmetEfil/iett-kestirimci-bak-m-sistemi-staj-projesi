@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>UKOME · Birleşik Operasyon Portali</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{
+  background:#010b1a;
+  color:#e0e6ed;
+  font-family:'Segoe UI',sans-serif;
+  display:flex;
+  position:relative;
+}
+#bus-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+
+/* Top bar */
+#top-bar{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;align-items:center;justify-content:center;
+  padding:18px 24px;gap:12px;
+}
+.top-logo{height:138px;width:auto;display:block;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.35);}
+
+/* Divider */
+.split-divider{
+  position:absolute;top:0;bottom:0;width:1px;
+  background:linear-gradient(to bottom,transparent 0%,rgba(255,255,255,.12) 30%,rgba(255,255,255,.12) 70%,transparent 100%);
+  z-index:2;transform:translateX(-50%);pointer-events:none;
+}
+.split-divider-1{left:33.33%;}
+.split-divider-2{left:66.67%;}
+
+/* Halves */
+.half{
+  flex:1;height:100%;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;cursor:pointer;text-decoration:none;color:inherit;
+  position:relative;z-index:1;transition:background .3s ease;
+  padding:80px 56px 60px;
+}
+.half-2025{background:rgba(14,165,233,.05);}
+.half-2025:hover{background:rgba(14,165,233,.10);}
+.half-2026{background:rgba(239,68,68,.05);}
+.half-2026:hover{background:rgba(239,68,68,.10);}
+.half-canli{background:rgba(34,197,94,.05);}
+.half-canli:hover{background:rgba(34,197,94,.10);}
+.half::after{content:'';position:absolute;inset:0;pointer-events:none;}
+.half-2025::after{background:linear-gradient(to right,rgba(14,165,233,.07) 0%,transparent 100%);}
+.half-2026::after{background:linear-gradient(135deg,rgba(239,68,68,.05) 0%,transparent 100%);}
+.half-canli::after{background:linear-gradient(to left,rgba(34,197,94,.07) 0%,transparent 100%);}
+.half-inner{max-width:500px;width:100%;position:relative;z-index:1;}
+
+/* Year badge */
+.year-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 14px;border-radius:20px;margin-bottom:18px;
+}
+.badge-25{background:rgba(14,165,233,.15);color:#38bdf8;border:1px solid rgba(14,165,233,.35);}
+.badge-26{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.35);}
+.badge-canli{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.35);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse-d 1.2s ease-in-out infinite;}
+
+/* Year number */
+.year-num{font-size:100px;font-weight:900;line-height:1;letter-spacing:-5px;margin-bottom:10px;}
+.y25 .year-num{color:#0ea5e9;text-shadow:0 0 60px rgba(14,165,233,.3);}
+.y26 .year-num{color:#ef4444;text-shadow:0 0 60px rgba(239,68,68,.3);}
+.y-canli .year-num{color:#22c55e;text-shadow:0 0 60px rgba(34,197,94,.3);}
+
+.half-title{font-size:20px;font-weight:800;color:#f1f5f9;margin-bottom:6px;}
+.half-sub{font-size:13px;color:#64748b;margin-bottom:24px;line-height:1.6;}
+
+/* Stats */
+.stat-row{display:flex;gap:20px;margin-bottom:22px;flex-wrap:wrap;}
+.stat-item{display:flex;flex-direction:column;gap:2px;}
+.stat-val{font-size:26px;font-weight:900;}
+.stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.05em;}
+.y25 .stat-val{color:#38bdf8;}
+.y26 .stat-val{color:#fb923c;}
+.y-canli .stat-val{color:#4ade80;}
+
+/* Tier bars */
+.tier-bars{margin-bottom:28px;}
+.tier-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12px;}
+.tier-name{width:64px;font-weight:700;}
+.tier-bg{flex:1;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+.tier-fill{height:100%;border-radius:4px;}
+.tier-n{width:42px;text-align:right;color:#64748b;font-weight:700;}
+
+/* CTA */
+.cta-btn{
+  width:100%;padding:14px 22px;border-radius:10px;border:none;
+  font-size:14px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;
+  transition:.2s;letter-spacing:.02em;
+}
+.cta-25{background:#0ea5e9;color:#fff;}
+.cta-25:hover{background:#0284c7;}
+.cta-26{background:#ef4444;color:#fff;}
+.cta-26:hover{background:#dc2626;}
+.cta-canli{background:#22c55e;color:#fff;}
+.cta-canli:hover{background:#16a34a;}
+
+/* Bottom model bar */
+#model-bar{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  background:rgba(11,15,25,.85);border-top:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(8px);
+  padding:10px 40px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+}
+.mb-item{display:flex;flex-direction:column;}
+.mb-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#475569;letter-spacing:.05em;}
+.mb-val{font-size:13px;font-weight:800;color:#94a3b8;}
+.mb-sep{width:1px;height:28px;background:rgba(255,255,255,.06);}
+.mb-badge{margin-left:auto;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;padding:4px 14px;border-radius:20px;font-size:10px;font-weight:800;}
+
+/* INFO TAB BUTTON */
+#info-btn{
+  position:absolute;top:14px;right:22px;z-index:11;
+  padding:8px 16px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.18);border-radius:22px;
+  color:#cbd5e1;font-size:12px;font-weight:700;letter-spacing:.04em;
+  cursor:pointer;transition:.2s;display:flex;gap:7px;align-items:center;
+  font-family:'Segoe UI',sans-serif;
+}
+#info-btn:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(125,211,252,.5);transform:translateY(-1px);}
+#info-btn .info-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#0ea5e9;color:#fff;font-size:11px;font-weight:900;font-style:italic;}
+
+/* MODAL */
+#info-modal-bg{
+  position:fixed;inset:0;z-index:999;
+  background:rgba(0,0,0,.82);backdrop-filter:blur(6px);
+  display:none;align-items:flex-start;justify-content:center;
+  padding:24px;overflow-y:auto;animation:fadeIn .2s ease;
+}
+#info-modal-bg.open{display:flex;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+#info-modal{
+  background:#fff;color:#1e293b;
+  max-width:960px;width:100%;
+  border-radius:14px;padding:34px 38px 30px;
+  font-family:'Segoe UI',sans-serif;position:relative;
+  box-shadow:0 25px 80px rgba(0,0,0,.6);
+  animation:slideUp .25s ease;
+}
+#info-modal .close-btn{
+  position:absolute;top:16px;right:18px;
+  background:none;border:0;color:#64748b;font-size:22px;
+  cursor:pointer;width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+#info-modal .close-btn:hover{background:#e2e8f0;color:#0f172a;}
+#info-modal h1{font-size:24px;color:#0f172a;margin-bottom:4px;line-height:1.2;font-weight:900;}
+#info-modal h1 .sub{display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:6px;}
+#info-modal .divider{height:3px;background:linear-gradient(to right,#0ea5e9,#22c55e,#ef4444);border-radius:2px;margin:18px 0 20px;}
+#info-modal h2{
+  font-size:15px;color:#0f172a;margin:24px 0 10px;
+  padding-bottom:6px;border-bottom:2px solid #e2e8f0;
+  display:flex;align-items:center;gap:8px;font-weight:800;
+}
+#info-modal h3{font-size:13px;color:#0f172a;margin:13px 0 5px;font-weight:700;}
+#info-modal p,#info-modal li{font-size:12.5px;color:#334155;line-height:1.7;}
+#info-modal ul{margin:4px 0 10px 22px;}
+#info-modal ul li{margin-bottom:3px;}
+#info-modal b{color:#0f172a;font-weight:700;}
+#info-modal code{background:#f1f5f9;color:#0ea5e9;padding:1px 6px;border-radius:3px;font-family:Consolas,monospace;font-size:11px;}
+#info-modal .badge-blue{background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;}
+#info-modal .badge-red{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;}
+#info-modal .badge-green{background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;}
+#info-modal .badge-orange{background:#ffedd5;color:#9a3412;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;}
+#info-modal table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 12px;}
+#info-modal th{background:#f1f5f9;color:#0f172a;padding:8px 11px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:11px;font-weight:700;}
+#info-modal td{padding:7px 11px;border-bottom:1px solid #e2e8f0;color:#334155;font-size:12px;}
+#info-modal .key-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0;}
+#info-modal .key-metric{background:#f8fafc;padding:11px 13px;border-radius:7px;border-left:3px solid #0ea5e9;}
+#info-modal .key-metric.r{border-left-color:#ef4444;}
+#info-modal .key-metric.g{border-left-color:#22c55e;}
+#info-modal .key-metric.o{border-left-color:#f59e0b;}
+#info-modal .key-metric .v{font-size:20px;font-weight:900;color:#0f172a;font-variant-numeric:tabular-nums;}
+#info-modal .key-metric .l{font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:.04em;margin-top:1px;}
+#info-modal .key-metric .c{font-size:10.5px;color:#475569;font-style:italic;margin-top:3px;line-height:1.4;}
+#info-modal .info-note{padding:10px 14px;background:#fef3c7;border-left:3px solid #f59e0b;border-radius:5px;font-size:12px;color:#78350f;margin:10px 0;}
+#info-modal .info-note b{color:#451a03;}
+#info-modal .closing-tagline{margin-top:24px;padding:14px 18px;background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:8px;font-size:13px;color:#0f172a;font-weight:600;text-align:center;line-height:1.6;}
+@media(max-width:700px){
+  #info-modal{padding:24px 20px;}
+  #info-modal h1{font-size:18px;}
+  #info-modal .key-metric-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bus-canvas"></canvas>
+
+<div id="top-bar">
+  <img class="top-logo" src="/static/img/iett_logo.jpg" alt="İETT">
+</div>
+
+<button id="info-btn" onclick="openInfo()" title="Proje teknik özeti">
+  <span class="info-i">i</span>
+  <span>Proje Bilgileri</span>
+</button>
+
+<!-- INFO MODAL -->
+<div id="info-modal-bg" onclick="if(event.target===this) closeInfo()">
+  <div id="info-modal">
+    <button class="close-btn" onclick="closeInfo()">✕</button>
+    <h1>🚌 UKOME · İETT Birleşik Operasyon Paneli
+      <span class="sub">ML Tahmin + Operasyonel Analiz · Datathon Projesi</span>
+    </h1>
+    <div class="divider"></div>
+
+    <!-- 1. Model -->
+    <h2>🤖 Model — V6.5</h2>
+    <ul>
+      <li><b>XGBoost + LightGBM Ensemble</b> · 23 feature · Optuna 50-trial tuning</li>
+      <li><b>Train → Inference akışı:</b> Q1 features ile Q2 target öğrenildi → Q2 features ile Q3 tahmin yapıldı</li>
+      <li><b>Yaz mevsim çarpanı:</b> ×1.2264 (Q3 = Tem-Eyl, klima/motor/lastik arızaları yazın artıyor)</li>
+      <li><b>Platt Kalibrasyonu:</b> Modelin ham olasılık çıkışı gerçek frekansa hizalandı</li>
+      <li><b>Top 5 feature:</b> <code>garaj_marka_lift</code>, <code>tuketim_100km</code>, <code>yas</code>, <code>farkli_sofor_sayisi</code>, <code>KAPASITE</code></li>
+      <li><b>Validasyon:</b> StratifiedKFold (5-Fold), Optuna 50-trial hiperparametre araması</li>
+    </ul>
+
+    <!-- 2. Metrikler -->
+    <h2>📏 Doğrulama Metrikleri</h2>
+    <div class="key-metric-grid">
+      <div class="key-metric"><div class="v">0.8167</div><div class="l">Test AUC</div><div class="c">Q2→Q3 temporal split, OOF</div></div>
+      <div class="key-metric g"><div class="v">0.067</div><div class="l">PSI</div><div class="c">&lt;0.1 → deployment-safe dağılım</div></div>
+      <div class="key-metric o"><div class="v">0.035</div><div class="l">ECE (Kalibre)</div><div class="c">Olasılık-gerçeklik ortalama sapma %3.5</div></div>
+      <div class="key-metric r"><div class="v">%85.7</div><div class="l">KRİTİK Precision (OOF)</div><div class="c">Tier purity — KRİTİK'in %85.7'si gerçek pozitif</div></div>
+    </div>
+    <p style="font-size:11px;color:#475569;"><b>F1:</b> 0.787 (best threshold 0.42) · <b>Stability Spearman:</b> 0.9762 (Q1↔Q2 sıralama tutarlılığı) · <b>AP:</b> 0.818 · <b>Brier Kalibre:</b> 0.1729 · <b>Genelleme Skoru:</b> 0.7837 · <b>KS pvalue:</b> 7.9e-08</p>
+
+    <!-- 3. Sweet spot -->
+    <h2>🧪 Sweet Spot Kanıtı — Elenen Alternatifler</h2>
+    <p>V6.5'e ulaşmak için 4 alternatif test edildi ve hepsi elendi:</p>
+    <table>
+      <thead><tr><th>Alternatif</th><th>Hipotez</th><th>Sonuç</th></tr></thead>
+      <tbody>
+        <tr><td><b>V6.6</b> (8 feature pruning)</td><td>Zayıf Pearson r feature'larını çıkar</td><td><span class="badge-red">PSI 0.067 → 0.48</span></td></tr>
+        <tr><td><b>V6.5.1</b> (dur_kalk_index çıkar)</td><td>Yön anomalisi nedeniyle çıkar</td><td><span class="badge-red">PSI 1.29</span></td></tr>
+        <tr><td><b>V6.5.2</b> (3 trend feature ekle)</td><td>Trend sinyali eklemek</td><td><span class="badge-red">PSI 0.43</span></td></tr>
+        <tr><td><b>V6.5.3</b> (garaj_marka_lift çıkar)</td><td>Garaj feature'sız test</td><td><span class="badge-red">AUC -0.012, Yunus cluster daha kötü</span></td></tr>
+      </tbody>
+    </table>
+    <div class="info-note"><b>Not:</b> Pearson r düşük olduğu için feature elenmesi tek başına yeterli değildir. PSI testi şart — dağılım stabilliği AUC'tan önce gelir.</div>
+
+    <!-- 4. Cluster Audit -->
+    <h2>🚩 Cluster Audit — Sistematik Bias Tespiti</h2>
+    <p>Ground truth audit'te modelin tahmin gücünün düştüğü 3 cluster tespit edildi:</p>
+    <ul>
+      <li><span class="badge-red">FN</span> <b>BMC IKITELLI 8 yaş + DÜŞÜK tier</b> — Sistematik kaçırılma; model "düşük risk" diyor ama Q2'de hızlanma sinyali</li>
+      <li><span class="badge-orange">FP</span> <b>MERCEDES Edirnekapı 16-17 yaş + KRİTİK tier</b> — Yanlış alarm; survivorship bias + iyi bakım</li>
+      <li><span class="badge-blue">Düşük per-garaj AUC</span> <b>Yunus / Sarıgazi / Şahinkaya garajları</b> — Per-garaj AUC sırasıyla 0.51, 0.44, 0.47 (genel ensemble 0.82'nin çok altında); bu garajlarda model rastgeleye yakın</li>
+    </ul>
+    <p>Bu cluster'lardaki araçlar panelde <b>⚠️ MANUEL</b> etiketiyle işaretlendi — model tahminine ek insan kontrolü gerekiyor.</p>
+
+    <!-- 5. Sistem-bazlı -->
+    <h2>🔧 Sistem-Bazlı Tahmin + V3 Tamir Düzeltmesi</h2>
+    <p>Araç bazlı tek olasılığa ek olarak <b>34 farklı sistem</b> (KAPI, MOTOR, FREN, KLİMA, ELEKTRİK, ŞANZIMAN…) için ayrı olasılık üretildi. <b>V3 Tamir Düzeltmesi</b> ile yakın geçmişte tamir edilen sistemde olasılık aşağı, hiç tamir görmemiş kronik kalıpta yukarı çekiliyor. <code>tier_ham</code> ile <code>tier_duzeltilmis</code> arasındaki fark, tamir geçmişinin tier'i nasıl etkilediğini gösteriyor.</p>
+
+    <!-- 6. H1 vs Q3 -->
+    <h2>🔄 H1 vs Q3 Karşılaştırma</h2>
+    <ul>
+      <li><b>H1 verisi:</b> <code>smart_maintenance.json</code> · Q1+Q2 ham veriden ciddiyet_skoru tabanlı retroaktif operasyonel ölçüm</li>
+      <li><b>Q3 verisi:</b> V6.5 ileri tahmin · Platt kalibre + yaz çarpanlı</li>
+      <li><b>Tier geçiş matrisi:</b> 4×4 (DÜŞÜK/ORTA/YÜKSEK/KRİTİK), kırmızı = risk arttı, yeşil = azaldı</li>
+      <li><b>Sebep heuristikleri:</b> yaş 10-12 maks risk, kronik arıza, son 30 gün ağır arıza, 90 gün kategori çeşitliliği, yaz mevsim çarpanı, Platt kalibrasyon etkisi</li>
+    </ul>
+
+    <!-- 7. Operasyonel -->
+    <h2>⚙️ Operasyonel Hesaplar — Model Dışı Katma Değer</h2>
+
+    <h3>⛽ Yakıt Maliyet Hesabı</h3>
+    <p>28 araç modeli için baz tüketim tablosu (KENT 290LF 28.5 L/100km, LF25 38, CITARO 0530 G 41 L/100km, AVENUE LF CNG 26 kg/100km, E-JEST 0…). <b>Yaş faktörü</b> +%1.5/yıl. <b>Fiyat:</b> H1 2025 EPDK ortalaması 44.50 ₺/L. <b>Hat maliyeti:</b> <code>uzunluk_km × günlük_sefer × tüketim ÷ 100 × fiyat</code>. <b>Veri dönemi:</b> 181 gün (Oca-Haz 2025).</p>
+
+    <h3>⚠️ Arıza Analizi</h3>
+    <p>78.300 arıza kaydı (iett_data.db / ariza tablosu, Oca-Haz 2025, İETT+ÖHO+KOOP). <b>Ciddi arıza tanımı:</b> SONUCTIPI ∈ {Yol Ustası-Garaj, Çekilerek-Garaj, Telefonla-Garaj, Kayıtsız-Garaj, Oto Değişimi}. <b>Medyan tepki süresi:</b> uç vakalardan etkilenmemesi için ortalama yerine medyan (0-1440 dk geçerli kayıtlar). <b>Garaj ciddi %:</b> sadece ≥50 arızalı garajlar (istatistiksel anlamlılık).</p>
+
+    <h3>🧭 Akıllı Yol Tarifi</h3>
+    <ul>
+      <li><b>Fuzzy durak araması:</b> Token-bazlı + Türkçe karakter normalize + İlçe-aware skor</li>
+      <li><b>BFS rota arama:</b> Hat-seviyesinde, maks 4 aktarma derinliği</li>
+      <li><b>Yakın durak havuzu:</b> 250m içi aynı isimli durakların hatları birleştirilir (ör. MECİDİYEKÖY otobüs + METROBÜS aynı havuz)</li>
+      <li><b>Canlı ETA:</b> IBB TrafficIndex + TomTom + canlı araç hızı entegrasyonu</li>
+      <li><b>Otobüs hız modeli:</b> 13-22 km/h aralığı (özel şerit avantajı dahil)</li>
+      <li><b>OSRM polyline:</b> Foot + driving profilleri, anomali kontrolü (kuş uçuşunun 2.5×'undan büyükse doğrusal yedek)</li>
+      <li><b>Bekleme süresi:</b> Canlı ETA varsa o (🟢 CANLI), yoksa headway/2 (⏱️ Tahmini)</li>
+    </ul>
+
+    <h3>🚦 Trafik Hesabı</h3>
+    <p>3-katmanlı fallback: <b>IBB TrafficIndex</b> → <b>TomTom Flow</b> → profil bazlı. Segment bazlı trafik gecikmesi = gerçek_sefer − serbest_akış_sefer. Yaklaşım: otomobil trafiği baz alınmadan, otobüs özel şerit modelinden.</p>
+
+    <!-- 8. Mimari -->
+    <h2>🏗️ Mimari</h2>
+    <ul>
+      <li><b>Flask backend:</b> ~6000 satır routes, 100+ API endpoint</li>
+      <li><b>Veri katmanı:</b> SQLite + JSON cache + canlı SOAP hibrit</li>
+      <li><b>Background thread'ler:</b> Filo güncelleme 5dk · Gecikme skoru 30sn · Yoğunluk 5dk · IBB trafik 2dk · Olay (kaza/arıza/duyuru) 20dk</li>
+      <li><b>Frontend:</b> Single-page HTML + Chart.js + Leaflet + Real-time refresh (10-15sn)</li>
+      <li><b>12 ana sekme:</b> Trafik · Filo · Yolcu · Hat Analizi · Yakıt · Bilet · Arıza · Kaza · Garaj · Denetim · Personel · Yol Tarifi</li>
+      <li><b>Q3 alt sayfası (V6.5):</b> Tahminleme + H1 vs Q3 Karşılaştırma sekmesi</li>
+    </ul>
+
+    <!-- Veri kaynakları -->
+    <h2>📦 Veri Kaynakları</h2>
+    <table>
+      <thead><tr><th>Kaynak</th><th>Tür</th><th>Kullanım</th></tr></thead>
+      <tbody>
+        <tr><td>İETT SOAP API</td><td>Canlı</td><td>Filo konum (5dk), sefer planı, hat detay, durak</td></tr>
+        <tr><td>iett_data.db</td><td>SQLite H1 2025</td><td>78.300 arıza, yolcu, sefer, denetim, kaza</td></tr>
+        <tr><td>panel_data/*.json</td><td>Agregat</td><td>smart_maintenance, garaj_risk, hat_master, yolcu_agg, bilet_agg, denetim_agg</td></tr>
+        <tr><td>2025_q3 CSV</td><td>ML Çıktı</td><td>V6.5 araç + sistem-bazlı tahminler</td></tr>
+        <tr><td>EPDK</td><td>Manuel</td><td>H1 2025 mazot ortalaması 44.50 ₺/L</td></tr>
+        <tr><td>IBB TrafficIndex</td><td>Canlı API</td><td>Şehir geneli trafik yoğunluğu</td></tr>
+        <tr><td>TomTom Flow API</td><td>Canlı API</td><td>Nokta bazlı trafik (yedek)</td></tr>
+        <tr><td>OSRM Public</td><td>Canlı API</td><td>Yol rotası (yürüme + sürüş)</td></tr>
+        <tr><td>Nominatim</td><td>Canlı API</td><td>Adres → koordinat geocoding</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Teknik Terimler Sözlüğü -->
+    <h2>📚 Teknik Terimler Sözlüğü</h2>
+    <p style="margin-bottom:10px;color:#475569;">Modelimizde kullanılan yöntemlerin sade açıklaması:</p>
+
+    <h3>🔄 StratifiedKFold (5-Fold Cross-Validation)</h3>
+    <p>3.508 aracı <b>5 eşit parçaya</b> böldük ve modeli 5 kez eğittik — her seferinde 4 parça ile eğitim, 1 parça ile test. Sonuçta her araç sırayla test setinde yer aldı. Test AUC 0.8167 değeri bu 5 turun ortalamasıdır. <b>"Stratified"</b> = pozitif/negatif (3+ ciddi arıza yapan/yapmayan) oranı her fold'da korunur. <b>Neden?</b> Tek bir train/test bölünmesi şansa bağlı olabilir — 5-fold tutarlılığı kanıtlar.</p>
+
+    <h3>⚙️ Optuna 50-Trial (Hiperparametre Optimizasyonu)</h3>
+    <p>XGBoost ve LightGBM'in iç ayarlarını (<code>learning_rate</code>, <code>max_depth</code>, <code>n_estimators</code>…) <b>Optuna</b> kütüphanesi ile optimize ettik. Optuna <b>Bayesian arama</b> yapar: her denemenin sonucundan öğrenerek umut verici bölgeleri tarar. <b>50 trial</b> = 50 farklı hiperparametre kombinasyonu denendi. Grid search'te binlerce kombinasyon gerekirdi; Optuna 50 trial'da aynı kaliteyi yakaladı.</p>
+
+    <h3>📈 AUC (Area Under ROC Curve)</h3>
+    <p>0-1 arası bir skor. <b>0.5 = rastgele tahmin</b>, <b>1.0 = mükemmel ayrım</b>. Modelimiz 0.8167 — yani modelden rastgele bir KRİTİK ve bir DÜŞÜK araç seçersek, modelin KRİTİK'e daha yüksek olasılık verme olasılığı %82.</p>
+
+    <h3>🎯 PSI (Population Stability Index)</h3>
+    <p>İki dönem arasında feature dağılımlarının ne kadar değiştiğini ölçer. <b>&lt;0.1 = dağılım stabil</b>, 0.1-0.25 = orta kayma, &gt;0.25 = ciddi kayma. Bizim <b>psi_raw_q1_vs_q3 = 0.067</b> — train dönemi (Q1) ile inference dönemi (Q3) feature dağılımları neredeyse aynı. Bu, Q1'de öğrenilen kuralın Q3'te de geçerli olacağının kanıtıdır.</p>
+
+    <h3>📐 ECE (Expected Calibration Error)</h3>
+    <p>Modelin söylediği olasılık, gerçek frekansa ne kadar yakın? Örneğin model "bu araç %80 olasılıkla bozulur" diyorsa, gerçekte de %80'i bozulmalı. <b>ECE Kalibre 0.035</b> = ortalama %3.5 sapma (Platt öncesi 0.098'di, yani kalibrasyon 3 kat iyileştirdi).</p>
+
+    <h3>🎚️ F1 Score</h3>
+    <p>Precision (tahminlerin ne kadarı doğru?) ve Recall (gerçek pozitiflerin ne kadarını yakaladık?) ortalaması. <b>Best threshold 0.42</b> = 0.42 üstü "pozitif" sayıldığında F1 maksimum olur (0.787).</p>
+
+    <h3>📊 Brier Score</h3>
+    <p>Olasılık tahmininin gerçeklikten karesel uzaklığı. 0 = mükemmel, 1 = en kötü. <b>Brier Kalibre 0.1729</b> (Platt öncesi 0.183'tü). ECE ile birlikte kalibrasyon kalitesini gösterir.</p>
+
+    <h3>🎓 Platt Kalibrasyonu</h3>
+    <p>XGBoost/LightGBM'in ham olasılık çıkışları çoğu zaman kalibre değildir — örneğin "0.7" dediği şey gerçekte %85 olabilir. <b>Platt scaling</b>: model çıkışlarını sigmoid fonksiyon ile gerçek frekansa hizalar. ECE'nin 0.098'den 0.035'e düşmesinin sebebi budur (3× iyileşme).</p>
+
+    <h3>🤝 Ensemble (XGB + LGB)</h3>
+    <p>İki farklı algoritmanın (XGBoost ve LightGBM) tahminlerinin ortalaması alınır. <b>Neden?</b> Her algoritma farklı hatalar yapar; ortalamada bu hatalar birbirini götürür. <b>Varyans düşer</b>, tutarlılık artar.</p>
+
+    <h3>📏 Spearman Stability (0.9762)</h3>
+    <p><b>fold_rank_stability</b> = 5-Fold Cross-Validation'da farklı fold'larda eğitilen modellerin <b>aynı araçlar için verdiği sıralamanın</b> tutarlılığı. Spearman = sıralama korelasyonu. 0.9762 ≈ 1.0 = neredeyse mükemmel. Yani modelimizi farklı veri parçalarıyla eğitsek bile aynı KRİTİK araçları üst sıraya koyar — model <b>kararlı, kapris yok</b>.</p>
+
+    <h3>⚰️ Survivorship Bias</h3>
+    <p>"Hayatta kalanlar üzerinden istatistik yapma" hatası. 19 yaşına gelmiş bir otobüs hâlâ aktifse, demek ki sağlam aracı — daha çok arızalananlar zaten emekli edilmiş. Modelimiz bu nedenle yaş 10-12'yi maks risk olarak gösterir, 19'u değil. Q1 verisinde bu sinyal yakalanmış.</p>
+
+    <h3>🔍 PR-AUC (Average Precision = 0.818)</h3>
+    <p>Precision-Recall eğrisi altındaki alan. AUC'a alternatif; özellikle dengesiz sınıflarda daha bilgilendiricidir. 0.818 = modelin pozitif sınıfı yakalama kalitesinin yüksek olduğunu gösterir.</p>
+
+
+  </div>
+</div>
+
+<div class="split-divider split-divider-1"></div>
+<div class="split-divider split-divider-2"></div>
+
+<!-- LEFT: 2025 Historical -->
+<a class="half half-2025 y25" href="/panel/2025">
+  <div class="half-inner">
+    <div class="year-badge badge-25">📊 2025 H1</div>
+    <div class="year-num">2025</div>
+    <div class="half-title">2025 H1 Tarihsel Analiz</div>
+    <div class="half-sub">Oca–Haz 2025 · 6 aylık dondurulmuş veri<br>Arıza · Kaza · Denetim · Bakım · Garaj · 9 Analiz</div>
+    <div class="stat-row">
+      <div class="stat-item"><span class="stat-val" data-h1-toplam>3.509</span><span class="stat-lbl">Araç</span></div>
+      <div class="stat-item"><span class="stat-val" data-h1-kritik>640</span><span class="stat-lbl">Kritik</span></div>
+      <div class="stat-item"><span class="stat-val" data-h1-yuksek>788</span><span class="stat-lbl">Yüksek</span></div>
+    </div>
+    <div class="tier-bars">
+      <div class="tier-row"><span class="tier-name" style="color:#ef4444">KRİTİK</span><div class="tier-bg"><div class="tier-fill" data-h1-bar="kritik" style="width:18.2%;background:#ef4444"></div></div><span class="tier-n" data-h1-tier="kritik">640</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#f97316">YÜKSEK</span><div class="tier-bg"><div class="tier-fill" data-h1-bar="yuksek" style="width:22.5%;background:#f97316"></div></div><span class="tier-n" data-h1-tier="yuksek">788</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#f59e0b">ORTA</span><div class="tier-bg"><div class="tier-fill" data-h1-bar="orta" style="width:37.6%;background:#f59e0b"></div></div><span class="tier-n" data-h1-tier="orta">1.319</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#22c55e">DÜŞÜK</span><div class="tier-bg"><div class="tier-fill" data-h1-bar="dusuk" style="width:21.7%;background:#22c55e"></div></div><span class="tier-n" data-h1-tier="dusuk">762</span></div>
+    </div>
+    <div class="cta-btn cta-25"><span>📊 Analiz Panosunu Aç</span><span>→</span></div>
+  </div>
+</a>
+
+<!-- MIDDLE: 2025 Q3 ML Forecast (V6.5) -->
+<a class="half half-2026 y26" href="/panel/v6_5">
+  <div class="half-inner">
+    <div class="year-badge badge-26">🤖 2025 Q3 ML TAHMİN (V6.5)</div>
+    <div class="year-num" style="font-size:64px;">Q3</div>
+    <div class="half-title">2025 Q3 Tahminleme Paneli</div>
+    <div class="half-sub">V6.5 XGB+LGB Ensemble (AUC 0.82, PSI 0.07)<br>Arıza Tahmini · Sistem-Bazlı Risk · 539 Manuel Uyarı</div>
+    <div class="stat-row">
+      <div class="stat-item"><span class="stat-val">527</span><span class="stat-lbl">Kritik</span></div>
+      <div class="stat-item"><span class="stat-val">876</span><span class="stat-lbl">Yüksek</span></div>
+      <div class="stat-item"><span class="stat-val">3.508</span><span class="stat-lbl">Toplam Araç</span></div>
+    </div>
+    <div class="tier-bars">
+      <div class="tier-row"><span class="tier-name" style="color:#ef4444">KRİTİK</span><div class="tier-bg"><div class="tier-fill" style="width:15.0%;background:#ef4444"></div></div><span class="tier-n">527</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#f97316">YÜKSEK</span><div class="tier-bg"><div class="tier-fill" style="width:25.0%;background:#f97316"></div></div><span class="tier-n">876</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#f59e0b">ORTA</span><div class="tier-bg"><div class="tier-fill" style="width:30.0%;background:#f59e0b"></div></div><span class="tier-n">1.052</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#22c55e">DÜŞÜK</span><div class="tier-bg"><div class="tier-fill" style="width:30.0%;background:#22c55e"></div></div><span class="tier-n">1.053</span></div>
+    </div>
+    <div class="cta-btn cta-26"><span>🤖 2025 Q3 Tahmin (V6.5)</span><span>→</span></div>
+  </div>
+</a>
+
+<!-- RIGHT: Canlı Sistem -->
+<a class="half half-canli y-canli" href="/panel/canli#map">
+  <div class="half-inner">
+    <div class="year-badge badge-canli"><span class="live-dot"></span>CANLI SİSTEM</div>
+    <div class="year-num" style="font-size:72px;letter-spacing:-3px;margin-bottom:14px;">CANLI</div>
+    <div class="half-title">Operasyon Sistemi</div>
+    <div class="half-sub">SOAP API · 2 dk güncelleme<br>Harita · Filo Yükü · Arıza Uyarıları</div>
+    <div class="stat-row">
+      <div class="stat-item"><span class="stat-val">2.847</span><span class="stat-lbl">Aktif Araç</span></div>
+      <div class="stat-item"><span class="stat-val">7</span><span class="stat-lbl">Hareketsiz</span></div>
+      <div class="stat-item"><span class="stat-val">142</span><span class="stat-lbl">Bakım Bugün</span></div>
+    </div>
+    <div class="tier-bars">
+      <div class="tier-row"><span class="tier-name" style="color:#22c55e">SOAP API</span><div class="tier-bg"><div class="tier-fill" style="width:98%;background:#22c55e"></div></div><span class="tier-n" style="color:#22c55e">●</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#38bdf8">HARITA</span><div class="tier-bg"><div class="tier-fill" style="width:100%;background:#38bdf8"></div></div><span class="tier-n" style="color:#38bdf8">●</span></div>
+      <div class="tier-row"><span class="tier-name" style="color:#fb923c">UYARI</span><div class="tier-bg"><div class="tier-fill" style="width:42%;background:#fb923c"></div></div><span class="tier-n">12</span></div>
+    </div>
+    <div class="cta-btn cta-canli"><span>🗺️ Canlı Operasyon Haritasına Git</span><span>→</span></div>
+  </div>
+</a>
+
+<div id="model-bar">
+  <div class="mb-item"><div class="mb-lbl">Model</div><div class="mb-val">V6.5 XGB+LGB</div></div>
+  <div class="mb-sep"></div>
+  <div class="mb-item"><div class="mb-lbl">Test AUC</div><div class="mb-val">0.817</div></div>
+  <div class="mb-sep"></div>
+  <div class="mb-item"><div class="mb-lbl">PSI / ECE</div><div class="mb-val">0.067 / 0.035</div></div>
+  <div class="mb-sep"></div>
+  <div class="mb-item"><div class="mb-lbl">F1 / Precision</div><div class="mb-val">0.787 / 74.2%</div></div>
+  <div class="mb-sep"></div>
+  <div class="mb-item"><div class="mb-lbl">Feature</div><div class="mb-val">23</div></div>
+  <div class="mb-sep"></div>
+  <div class="mb-item"><div class="mb-lbl">Kapsam</div><div class="mb-val">3.508 Araç</div></div>
+  <div class="mb-badge">StratifiedKFold · 5-Fold · Optuna 50-trial · Platt Kalibre</div>
+</div>
+
+<script>
+// INFO MODAL — açıklayıcı panel
+function openInfo(){
+  document.getElementById('info-modal-bg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeInfo(){
+  document.getElementById('info-modal-bg').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') closeInfo();
+});
+
+(function(){
+  var canvas = document.getElementById('bus-canvas');
+  var ctx = canvas.getContext('2d');
+  var W, H, ROAD_Y, ROAD_H;
+  var buildings = [], buses = [], stars = [], meteors = [], particles = [];
+  var winMemo = null;
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    ROAD_Y = H * 0.76;
+    ROAD_H = H * 0.14;
+    winMemo = null;
+    genBuildings();
+    genStars();
+  }
+
+  function genBuildings(){
+    buildings = [];
+    var x = 0;
+    while(x < W){
+      var bw = 30 + Math.random() * 60;
+      var bh = 60 + Math.random() * (H * 0.38);
+      var accent = Math.random() > 0.6;
+      buildings.push({
+        x:x, w:bw, h:bh,
+        dark: Math.random() > 0.4,
+        accent: accent,
+        accentColor: accent ? ['#0ea5e9','#8b5cf6','#ec4899','#f59e0b'][Math.floor(Math.random()*4)] : null,
+        winRows: Math.floor(bh/13),
+        winCols: Math.floor(bw/10),
+        winGrid: null
+      });
+      x += bw + 1 + Math.random() * 7;
+    }
+    // Pre-generate window grids (fixed, not random each frame)
+    buildings.forEach(function(b){
+      b.winGrid = [];
+      for(var r=0;r<b.winRows;r++){
+        b.winGrid[r] = [];
+        for(var c=0;c<b.winCols;c++){
+          b.winGrid[r][c] = Math.random() > 0.42;
+        }
+      }
+    });
+  }
+
+  function genStars(){
+    stars = [];
+    for(var i=0;i<160;i++){
+      stars.push({
+        x:Math.random()*W,
+        y:Math.random()*(H*0.72),
+        r:Math.random()*1.8+0.2,
+        phase:Math.random()*Math.PI*2,
+        speed:0.01+Math.random()*0.025
+      });
+    }
+  }
+
+  function spawnMeteor(){
+    meteors.push({
+      x: Math.random()*W*1.5,
+      y: -10,
+      vx: -3 - Math.random()*4,
+      vy: 2 + Math.random()*3,
+      len: 80 + Math.random()*120,
+      alpha: 1,
+      life: 0
+    });
+  }
+
+  var COLORS = ['#0ea5e9','#ef4444','#f59e0b','#22c55e','#8b5cf6','#ec4899','#0ea5e9'];
+  function initBuses(){
+    buses = [];
+    for(var i=0;i<9;i++){
+      var dir = Math.random()>0.35 ? 1 : -1;
+      var speed = 0.6 + Math.random()*2.0;
+      buses.push({
+        x: Math.random()*W, dir:dir,
+        y: ROAD_Y + 5 + Math.random()*(ROAD_H*0.55),
+        speed: speed,
+        color: COLORS[i%COLORS.length],
+        bw: 50+Math.random()*30, bh:20+Math.random()*9,
+        trail: []
+      });
+    }
+  }
+
+  resize();
+  initBuses();
+  window.addEventListener('resize', function(){ resize(); initBuses(); });
+
+  var frame = 0;
+
+  function drawBuildingsOnce(){
+    if(!winMemo){
+      var offscreen = document.createElement('canvas');
+      offscreen.width=W; offscreen.height=H;
+      var oc = offscreen.getContext('2d');
+
+      buildings.forEach(function(b){
+        var by = ROAD_Y - b.h;
+        // Body
+        oc.fillStyle = b.dark ? 'rgba(14,165,233,0.08)' : 'rgba(22,30,46,0.70)';
+        oc.fillRect(b.x, by, b.w, b.h);
+
+        // Accent glow on some buildings
+        if(b.accent && b.accentColor){
+          oc.strokeStyle = b.accentColor + '30';
+          oc.lineWidth = 1;
+          oc.strokeRect(b.x+0.5, by+0.5, b.w-1, b.h-1);
+          // Rooftop glow line
+          oc.fillStyle = b.accentColor + '60';
+          oc.fillRect(b.x, by, b.w, 2);
+        }
+
+        // Windows
+        for(var r=0;r<b.winRows;r++){
+          for(var c=0;c<b.winCols;c++){
+            if(b.winGrid[r][c]){
+              var wx = b.x + c*10 + 3;
+              var wy = by + r*13 + 4;
+              oc.fillStyle = 'rgba(251,191,36,0.18)';
+              oc.fillRect(wx, wy, 5, 6);
+              // Occasional brighter window
+              if(Math.random() > 0.85){
+                oc.fillStyle = 'rgba(251,191,36,0.55)';
+                oc.fillRect(wx, wy, 5, 6);
+              }
+            }
+          }
+        }
+      });
+      winMemo = offscreen;
+    }
+    ctx.drawImage(winMemo, 0, 0);
+  }
+
+  function drawBuildingGlow(){
+    // Subtle glow at base of buildings (city ambience)
+    var grad = ctx.createLinearGradient(0, ROAD_Y-60, 0, ROAD_Y);
+    grad.addColorStop(0, 'rgba(14,165,233,0)');
+    grad.addColorStop(1, 'rgba(14,165,233,0.04)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, ROAD_Y-60, W, 60);
+  }
+
+  function drawBus(b){
+    var x=b.x, y=b.y, bw=b.bw, bh=b.bh;
+    ctx.save();
+    if(b.dir===-1){
+      ctx.translate(x+bw/2, y+bh/2);
+      ctx.scale(-1,1);
+      ctx.translate(-(x+bw/2), -(y+bh/2));
+    }
+
+    // Glow under bus
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 18;
+
+    // Body
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    if(ctx.roundRect){ ctx.roundRect(x,y,bw,bh,4); } else { ctx.rect(x,y,bw,bh); }
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    // Windows
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    var wCount = Math.floor(bw/13);
+    for(var i=0;i<wCount;i++) ctx.fillRect(x+4+i*13, y+4, 9, bh*0.40);
+
+    // Headlight glow
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = 'rgba(255,255,230,0.9)';
+    ctx.fillRect(x+bw-5, y+4, 4, bh*0.35);
+    ctx.shadowBlur = 0;
+
+    // Wheels
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.beginPath(); ctx.arc(x+bw*0.2, y+bh+1, 4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+bw*0.8, y+bh+1, 4, 0, Math.PI*2); ctx.fill();
+
+    // Road reflection (blurry, below bus)
+    ctx.globalAlpha = 0.07;
+    ctx.save();
+    ctx.translate(x+bw/2, y+bh+2);
+    ctx.scale(1, -0.3);
+    ctx.translate(-(x+bw/2), -(y+bh+2));
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    if(ctx.roundRect){ ctx.roundRect(x,y,bw,bh,4); } else { ctx.rect(x,y,bw,bh); }
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
+  function drawStars(){
+    stars.forEach(function(s){
+      var a = 0.1 + 0.7*(0.5+0.5*Math.sin(frame*s.speed+s.phase));
+      ctx.shadowColor = '#fff';
+      ctx.shadowBlur = s.r > 1.2 ? 4 : 0;
+      ctx.fillStyle = 'rgba(255,255,255,'+a+')';
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+  }
+
+  function drawMeteors(){
+    for(var i=meteors.length-1;i>=0;i--){
+      var m = meteors[i];
+      m.x += m.vx; m.y += m.vy; m.life++;
+      m.alpha = Math.max(0, 1 - m.life/55);
+      if(m.alpha <= 0 || m.y > ROAD_Y){ meteors.splice(i,1); continue; }
+      ctx.save();
+      ctx.globalAlpha = m.alpha;
+      var ang = Math.atan2(m.vy, m.vx);
+      var grad = ctx.createLinearGradient(
+        m.x, m.y,
+        m.x - Math.cos(ang)*m.len, m.y - Math.sin(ang)*m.len
+      );
+      grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.3, 'rgba(180,210,255,0.6)');
+      grad.addColorStop(1, 'rgba(100,160,255,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#a5c8ff';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(m.x, m.y);
+      ctx.lineTo(m.x - Math.cos(ang)*m.len, m.y - Math.sin(ang)*m.len);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function animate(){
+    frame++;
+    ctx.clearRect(0,0,W,H);
+
+    // Stars
+    drawStars();
+
+    // Meteors
+    if(frame % 220 === 0 && Math.random() > 0.3) spawnMeteor();
+    drawMeteors();
+
+    // Buildings (offscreen cached)
+    drawBuildingsOnce();
+    drawBuildingGlow();
+
+    // Road
+    ctx.fillStyle = 'rgba(8,14,26,0.88)';
+    ctx.fillRect(0, ROAD_Y, W, ROAD_H);
+
+    // Road edge highlight
+    ctx.fillStyle = 'rgba(14,165,233,0.18)';
+    ctx.fillRect(0, ROAD_Y, W, 2);
+
+    // Road reflection gradient
+    var roadGrad = ctx.createLinearGradient(0, ROAD_Y, 0, ROAD_Y+ROAD_H);
+    roadGrad.addColorStop(0, 'rgba(14,165,233,0.04)');
+    roadGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = roadGrad;
+    ctx.fillRect(0, ROAD_Y, W, ROAD_H);
+
+    // Lane markings
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([30, 20]);
+    ctx.lineDashOffset = -(frame * 2.2);
+    ctx.beginPath();
+    ctx.moveTo(0, ROAD_Y + ROAD_H*0.5);
+    ctx.lineTo(W, ROAD_Y + ROAD_H*0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Buses
+    buses.forEach(function(b){
+      b.x += b.speed * b.dir;
+      if(b.dir === 1 && b.x > W+100) b.x = -100;
+      if(b.dir === -1 && b.x < -100) b.x = W+100;
+      drawBus(b);
+    });
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+// ── API'dan gerçek değerleri çek (H1 + Q3) ──
+(async function refreshLandingStats(){
+  const fmt = n => (n||0).toLocaleString('tr-TR');
+  try {
+    const r = await fetch('/api/panel/landing_stats');
+    if(!r.ok) return;
+    const d = await r.json();
+    // 2025 H1
+    const h = d['2025'];
+    if(h && h.toplam){
+      const toplam = h.toplam;
+      const T = h.tier || {};
+      const setText = (sel, val) => { const el=document.querySelector(sel); if(el) el.textContent=val; };
+      const setBar  = (sel, pct) => { const el=document.querySelector(sel); if(el) el.style.width=pct.toFixed(1)+'%'; };
+      setText('[data-h1-toplam]', fmt(toplam));
+      setText('[data-h1-kritik]', fmt(T['KRİTİK']));
+      setText('[data-h1-yuksek]', fmt(T['YÜKSEK']));
+      setText('[data-h1-tier="kritik"]', fmt(T['KRİTİK']));
+      setText('[data-h1-tier="yuksek"]', fmt(T['YÜKSEK']));
+      setText('[data-h1-tier="orta"]',   fmt(T['ORTA']));
+      setText('[data-h1-tier="dusuk"]',  fmt(T['DÜŞÜK']));
+      setBar('[data-h1-bar="kritik"]', (T['KRİTİK']||0)/toplam*100);
+      setBar('[data-h1-bar="yuksek"]', (T['YÜKSEK']||0)/toplam*100);
+      setBar('[data-h1-bar="orta"]',   (T['ORTA']||0)/toplam*100);
+      setBar('[data-h1-bar="dusuk"]',  (T['DÜŞÜK']||0)/toplam*100);
+    }
+  } catch(e){ console.warn('landing_stats:', e); }
+})();
+</script>
+</body>
+</html>
